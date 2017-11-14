@@ -1,0 +1,129 @@
+---
+title: "Project Checkpoint 3"
+author: "Phuc Nguyen, Jina Park"
+date: "November 8, 2017"
+
+output: html_document
+---
+
+# Progress Made
+
+- Created a Github repository for our R project.
+
+- Cleaned the Chicago crime data by filtering out dates to only include crimes committed between 2010-2017, changed the categorical variables of Arrest and Domestic to binary variables, and changed the Date column from strings to datetime format.
+
+- Obtained a Census API key and demographic data using acs and function called ‘get_tract_demographics.’
+
+- Started looking up how to create maps using choropleth and choroplethrMaps packages
+
+
+# Roles of each member
+
+- Phuc wrote up the meanings of the variables in the Chicago crime data.
+
+- Phuc typed up the commands to clean the data (i.e. change Date column to datetime format, change categorical variables to dummy variables, etc).
+
+- Jina wrote up the meanings of the variables in the demographic data.
+
+- Jina worked with choroplethr and acs to obtain the demographic data.
+
+- Jina typed up this report.
+
+- We both worked to set up a Github repository so that we could share the R files.
+
+- We both worked together during the entire process and helped each other through most of the steps.
+
+
+# Chicago Crime Data
+
+### Description
+
+This data set contains information about crime incidents from 2010 to present (2017) in Chicago.
+
+We obtained this data from [https://data.cityofchicago.org/Public-Safety/Crimes-2001-to-present/ijzp-q8t2/data]
+
+Some variables that we might use in our analysis are
+
+- ID: unique identifier for each record
+
+- Date: the best estimate of when (date, time) the incident occurred
+
+- Primary Type: primary description of the incident according to the Illinoise Uniform Crime Reporting code [https://data.cityofchicago.org/d/c7ck-438e.]
+
+- Description: subcategory of the primary description
+
+- Location Description: description of the location where the incident occurred
+
+- Arrest: Whether an arrest was made
+
+- Domestic: Whether the incident was domestic-related according to Illinois Domestic Violence Act
+
+- Beat: Indicates the beat where the incident occurred. A beat is the smallest police geographic area – each beat has a dedicated police beat car. Three to five beats make up a police sector, and three sectors make up a police district. The Chicago Police Department has 22 police districts. See the beats at [https://data.cityofchicago.org/d/aerh-rz74.]
+
+- District: Indicates the police district where the incident occurred. See the districts at [https://data.cityofchicago.org/d/fthy-xz3r.]
+
+- Ward: The ward (City Council district) where the incident occurred. See the wards at [https://data.cityofchicago.org/d/sp34-6z76.]
+
+- Community Area: Indicates the community area where the incident occurred. Chicago has 77 community areas. See the community areas at [https://data.cityofchicago.org/d/cauq-8yn6.]
+
+- Latitude: The latitude of the location where the incident occurred.
+
+- Longitude: The longitude of the location where the incident occurred.
+
+- Year: Year the incident occurred.
+
+
+```{r , cache=TRUE}
+Crime = read.csv('Crime_sample_2010_to_2017.csv')
+```
+
+```{r, cache=TRUE}
+dim(Crime)
+names(Crime)
+head(Crime)
+summary(Crime)
+```
+
+
+Code to clean data: convert 'true', 'false' values to 0 and 1, and date to date time format.
+
+# Demographics Data
+
+### Description
+
+Source of Data: We used the get_tract_demographics function from the acs package (American Community Survey) to get demographic data on Census Tracts from the US Census Bureau. The data spans the years 2010-2017.
+
+Variables that we will use:
+
+- region: the region id within a state
+
+- total_population: the total population in the region
+
+- percent_white: the percentage of people in the region that are white
+
+- percent_black: the percentage of people in the region that are black
+
+- percent_asian: the percentage of people in the region that are asian
+
+- percent_hispanic: the percentage of people in the region that are hispanic
+
+- per_capita_income: the capita per income of the region
+
+- median_rent: the median rent of the region
+
+- median_age: the median age of the region
+
+
+```{r, cache=TRUE}
+library(choroplethr)
+library(choroplethrMaps)
+library(acs)
+api.key.install('23548fe7e771e8b0aeb4dd6e1ac95f7df1146a00')
+illinois <- read.csv("Illinois_demographic.csv")
+#write(illinois, 'Illinois_demographic.csv')
+dim(illinois)
+names(illinois)
+head(illinois)
+summary(illinois)
+```
+

@@ -1,0 +1,87 @@
+```{r}
+install.packages(c("maps", "mapdata"))
+library(ggplot2)
+library(ggmap)
+library(maps)
+library(mapdata)
+```
+
+```{r}
+usa <- map_data("usa")
+head(usa)
+w2hr <- map_data("world2Hires")
+```
+
+```{r}
+ggplot() + geom_polygon(data = usa, aes(x=long, y = lat, group)) + coord_fixed(1.3)
+```
+
+
+```{r}
+states <- map_data("state")
+ggplot(data=states) + 
+  geom_polygon(aes(x=long, y=lat, fill=region, group=group), color="white") +
+  coord_fixed(1.3) +
+  guides(fill=FALSE)
+```
+
+```{r}
+il_df <- subset(states, region == "illinois")
+il_df
+counties <- map_data("county")
+il_county <- subset(counties, region == "illinois", subregion == "cook")
+il_county
+il_base <- ggplot(data=il_df, mapping = aes(x=long, y=lat, group=group)) +
+  coord_fixed(1.3) + 
+  geom_polygon(color = "black", fill="gray")
+il_base + theme_nothing() +
+  geom_polygon(data=il_county, fil=NA, color="white") +
+  geom_polygon(color="black", fill=NA) 
+```
+
+```{r}
+ditch_the_axes <- theme(
+  axis.text = element_blank(),
+  axis.line = element_blank(),
+  axis.ticks = element_blank(),
+  panel.border = element_blank(),
+  panel.grid = element_blank(),
+  axis.title = element_blank()
+)
+```
+
+
+
+```{r}
+violent_crimes <- subset(crime, offense != "auto theft" & offense != 
+    "theft" & offense != "burglary")
+
+# rank violent crimes
+violent_crimes$offense <- factor(violent_crimes$offense, levels = c("robbery", 
+    "aggravated assault", "rape", "murder"))
+
+# restrict to downtown
+violent_crimes <- subset(violent_crimes, -95.39681 <= lon & lon <= 
+    -95.34188 & 29.73631 <= lat & lat <= 29.784)
+```
+
+```{r}
+HoustonMap <- qmap('houston', zoom = 14,color = 'bw', legend = 'topleft')
+HoustonMap +geom_point(aes(x = lon, y = lat, 
+  size = offense,colour = offense), data = violent_crimes )
+```
+
+```{r}
+houston <- get_map('houston', zoom = 14) 
+HoustonMap <- ggmap(houston, extent = 'device', legend = 'topleft')
+
+HoustonMap + stat_density2d(aes(x = lon, y = lat, 
+  fill = ..level.. , alpha = ..level..),size = 2, bins = 4, 
+  data = violent_crimes, geom = 'polygon') 
+  scale_fill_gradient('Violent\nCrime\nDensity') +
+  scale_alpha(range = c(.4, .75), guide = FALSE) +
+  guides(fill = guide_colorbar(barwidth = 1.5, barheight = 10))
+```
+
+
+
