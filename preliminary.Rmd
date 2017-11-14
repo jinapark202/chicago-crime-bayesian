@@ -1,0 +1,38 @@
+---
+title: "Project Checkpoint 4"
+author: "Phuc Nguyen"
+date: "November 14, 2017"
+output: html_document
+---
+
+```{r}
+#load data and library
+
+Crime = read.csv('Crime_sample_2010_to_2017.csv')
+
+library(dplyr)
+library(tidyr)
+library(choroplethr)
+library(ggplot2)
+```
+
+#Summary Statistics
+
+Barplot for categorial variables of interests:
+
+*Primary Type
+
+*Location Description
+
+*Arrest
+
+*Domestic
+
+
+Seasonal trend in number of crime by Primary Type
+
+Daily trend in number of crime by Primary Type
+
+
+
+#Visualization
