@@ -9,30 +9,131 @@ output: html_document
 #load data and library
 
 Crime = read.csv('Crime_sample_2010_to_2017.csv')
+Crime = Crime %>%
+  mutate(Date = as.POSIXct(strptime(Date, "%Y-%m-%d %H:%M:%S")))
 
 library(dplyr)
 library(tidyr)
 library(choroplethr)
 library(ggplot2)
+
+head(Crime)
 ```
 
 #Summary Statistics
 
 Barplot for categorial variables of interests:
 
-*Primary Type
-
-*Location Description
-
 *Arrest
 
-*Domestic
+Around 25% of crimes results in arrests.
 
+```{r}
+sum(Crime$Arrest == 1)/nrow(Crime)
+sum(Crime$Domestic == 1)/nrow(Crime)
 
-Seasonal trend in number of crime by Primary Type
+#arrest by crime type:
 
-Daily trend in number of crime by Primary Type
+temp=Crime %>% 
+  select(Primary.Type, Arrest) %>%
+  group_by(Primary.Type) %>%
+  mutate(total_count = n()) %>%
+  filter(Arrest==1) %>%
+  mutate(arrest_count = n()) %>%
+  mutate(arrest_rate = arrest_count/total_count) %>%
+  distinct() %>%
+  arrange(desc(arrest_count))
 
+temp
+```
 
 
 #Visualization
+
+*Arrest
+
+```{r}
+data = Crime %>% 
+  filter(Arrest == 'true')
+ggplot(data, aes(Primary.Type)) + geom_bar() +
+  theme(axis.text.x = element_text( angle=90, hjust=1))
+
+```
+
+*Primary Type
+
+```{r}
+ggplot(Crime, aes(x=Primary.Type, fill=Arrest)) + geom_bar() + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+*Domestic
+
+```{r}
+sum(Crime$Domestic == 'true')/nrow(Crime)
+ggplot(Crime, aes(x=Primary.Type, fill=as.factor(Domestic))) + geom_bar() + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+*Count of crime per District
+
+```{r}
+range(Crime$District)
+ggplot(Crime, aes(District)) + geom_bar()
+```
+
+*Location Description
+
+Only include locations whose counts are in the upper quantile.
+
+
+```{r}
+temp = Crime %>% 
+  group_by(Location.Description) %>%
+  summarise(count = n()) %>%
+  filter(count >= quantile(count, 0.75))
+
+data = Crime %>%
+  left_join( temp, by='Location.Description') %>%
+  filter(! is.na(count))
+
+ggplot(data, aes(Location.Description)) + geom_bar() +
+  theme(axis.text.x = element_text( angle = 90, hjust = 1))
+```
+
+Type of crime by location description
+
+```{r, fig.width=15,fig.height=5}
+ggplot(data, aes(Location.Description, fill=Primary.Type)) + geom_bar() +
+  theme(axis.text.x = element_text( angle = 90, hjust = 1))
+```
+
+Arrest by location description
+
+```{r}
+ggplot(data, aes(Location.Description, fill=as.factor(Arrest))) + geom_bar() +
+  theme(axis.text.x = element_text( angle = 90, hjust = 1))
+```
+
+Daily trend (time in a day) in number of crime by Primary Type
+
+```{r, fig.width=15,fig.height=5}
+daily_trend = Crime  %>% 
+  mutate(hour = lubridate::hour(Date)) %>%
+  group_by(hour, Primary.Type) %>%
+  mutate( count = n())
+
+ggplot(daily_trend, aes(hour, count, colour = Primary.Type)) + geom_line()
+```
+
+Seasonal trend (by month) in number of crime by Primary Type
+
+```{r, fig.width=15,fig.height=5}
+yearly_trend = Crime  %>% 
+  filter(Year == 2010) %>%
+  mutate(month = lubridate::month(Date)) %>%
+  group_by(month, Primary.Type) %>%
+  mutate(count = n())
+
+ggplot(yearly_trend, aes(month, count, colour=Primary.Type)) + geom_line()s
+```
