@@ -95,7 +95,7 @@ Source of Data: We used the get_tract_demographics function from the acs package
 
 Variables that we will use:
 
-- region: the region id within a state
+- region: the region id (tract geoid) within a state
 
 - total_population: the total population in the region
 
@@ -119,11 +119,175 @@ library(choroplethr)
 library(choroplethrMaps)
 library(acs)
 api.key.install('23548fe7e771e8b0aeb4dd6e1ac95f7df1146a00')
-illinois <- read.csv("Illinois_demographic.csv")
+illinois_demog <- read.csv("Illinois_demographic.csv")
+illinois_demog
 #write(illinois, 'Illinois_demographic.csv')
-dim(illinois)
-names(illinois)
-head(illinois)
-summary(illinois)
+dim(illinois_demog)
+names(illinois_demog)
+head(illinois_demog)
+summary(illinois_demog)
+```
+
+```{r}
+library(plyr)
+x <- data.frame(count(Crime,Primary.Type))
+y <- data.frame(count(Crime, Location.Description))
+
+colnames(x)[2] <- "type_count"
+colnames(y)[2] <- "location_count"
+
+y <- y %>%
+  arrange(-location_count)
+
+x <- x %>%
+  arrange(-type_count) 
+
+x <- x[1:15,]
+y <- y[1:15,]
+x
+y
+
+Crime1 <- left_join(Crime, x)
+Crime2 <- left_join(Crime, y)
+
+Crime1
+Crime2
+Crime <- Crime2 %>%
+  filter(type_count > 50) %>%
+  filter(!is.na(Latitude)) %>%
+  filter(location_count > 100)
+```
+
+```{r}
+library(ggplot2)
+library(ggmap)
+library(plotGoogleMaps)
+library(dplyr)
+
+locations <- with(Crime, as.data.frame(cbind(Longitude, Latitude)))
+
+coordinates(locations) <- ~Longitude+Latitude
+
+proj4string(locations) <- CRS("+init=epsg:4326")
+CRS("+init=epsg:4326")
+
+
+ChicagoMap <- qmap('chicago', zoom = 14,color = 'bw', legend = 'topleft')
+plot(locations)
+ChicagoMap
+a <- plotGoogleMaps(locations, zoom = 19)
+```
+
+
+```{r}
+library(maps)
+library(ggplot2)
+world_map <- map_data("state")
+world_map
+illinois <- subset(world_map, world_map$region=="illinois")
+illinois
+
+p <- ggplot() + coord_fixed() + 
+  xlab("") + ylab("")
+p
+base_map <- p + geom_polygon(data=illinois, aes(x=long, y=lat, group=group), colour="blue", fill="blue")
+base_map
+
+cleanup <- 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        panel.background = element_rect(fill = 'white', colour = 'white'), 
+        axis.line = element_line(colour = "white"), legend.position="none",
+        axis.ticks=element_blank(), axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+base_world <- base_map + cleanup
+base_world
+
+map_primary_type <- qmap('chicago', zoom = 14, color = 'bw') +
+  geom_point(data=Crime, aes(x=Longitude, y=Latitude, colour=factor(Primary.Type), alpha=0.4, size = primary_count))
+map_primary_type
+
+map_location_desc <- qmap('chicago', zoom = 13,color = 'bw') +
+  geom_point(data=Crime, aes(x=Longitude, y=Latitude, colour=factor(Location.Description)))
+map_location_desc
+
+map_arrest <- qmap('chicago', zoom = 14,color = 'bw', shape = 20) +
+  geom_point(data=Crime, aes(x=Longitude, y=Latitude, colour = Arrest))
+map_arrest
+
+map_domestic <- qmap('chicago', zoom = 12,color = 'bw', shape = 20) +
+  geom_point(data=Crime, aes(x=Longitude, y=Latitude, colour = Domestic))
+map_domestic
+```
+
+
+
+```{r}
+library(dplyr)
+require(maptools)
+require(tigris)
+require(acs)
+require(stringr)
+require(leaflet)
+```
+
+```{r}
+tracts <- tracts(state = 'IL', cb=TRUE)
+
+fetched <- acs.fetch(
+  geography = geo.make(state = "IL", county="*", tract="*"),
+  endyear = 2012, span = 5,
+  table.number = "B19001",
+  col.names = "pretty"
+)
+
+names(attributes(fetched))
+attr(fetched, "acs.colnames")
+
+acs_df <- data.frame(
+  paste0(
+    str_pad(fetched@geography$state, 2, "left", pad="0"),
+    str_pad(fetched@geography$county, 3, "left", pad="0"),
+    str_pad(fetched@geography$tract, 6, "left", pad="0")),
+  fetched@estimate[,c("Household Income: Total:", "Household Income: $200,000 or more")],
+  stringsAsFactors = FALSE)
+
+  
+acs_df           <- select(acs_df, 1:3) %>% tbl_df()
+rownames(acs_df) <- 1:nrow(acs_df)
+names(acs_df)    <- c("GEOID", "total", "over_200")
+acs_df$percent   <- 100*(acs_df$over_200/acs_df$total)
+```
+
+```{r}
+df_merged <- geo_join(tracts, acs_df, "GEOID", "GEOID")
+
+# there are some tracts with no land that we should exclude
+df_merged <- df_merged[df_merged$ALAND>0,]
+```
+
+```{r}
+popup <- paste0("GEOID: ", df_merged$GEOID, "<br>", "Percent of Households above $200k: ", round(df_merged$percent,2))
+pal <- colorNumeric(
+  palette = "YlGnBu",
+  domain = df_merged$percent
+)
+```
+
+```{r}
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data = df_merged, 
+              fillColor = ~pal(percent), 
+              color = "#b2aeae", # you need to use hex colors
+              fillOpacity = 0.7, 
+              weight = 1, 
+              smoothFactor = 0.2,
+              popup = popup) %>%
+  addLegend(pal = pal, 
+            values = df_merged$percent, 
+            position = "bottomright", 
+            title = "Percent of Households<br>above $200k",
+            labFormat = labelFormat(suffix = "%")) 
 ```
 
