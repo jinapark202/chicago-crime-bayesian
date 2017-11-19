@@ -9,13 +9,13 @@ output: html_document
 #load data and library
 
 Crime = read.csv('Crime_sample_2010_to_2017.csv')
-Crime = Crime %>%
-  mutate(Date = as.POSIXct(strptime(Date, "%Y-%m-%d %H:%M:%S")))
-
 library(dplyr)
 library(tidyr)
 library(choroplethr)
 library(ggplot2)
+
+Crime = Crime %>%
+  mutate(Date = as.POSIXct(strptime(Date, "%Y-%m-%d %H:%M:%S")))
 
 head(Crime)
 ```
@@ -135,5 +135,10 @@ yearly_trend = Crime  %>%
   group_by(month, Primary.Type) %>%
   mutate(count = n())
 
-ggplot(yearly_trend, aes(month, count, colour=Primary.Type)) + geom_line()s
+ggplot(yearly_trend, aes(month, count, colour=Primary.Type)) + geom_line()
 ```
+
+
+## Map viz
+
+Project latitude and longitude to tract polygon
