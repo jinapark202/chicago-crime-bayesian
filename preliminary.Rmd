@@ -348,14 +348,14 @@ gg2016
 ```
 
 
-```{r}
+```{r, fig.width=15,fig.height=15}
 library(rgdal)
 
 gg1 <- ggplot()
 gg1 <- gg1 + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill=NA, size=0.5, alpha=0.5) 
 gg1 <- gg1 + stat_density2d(data=Crime, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
 gg1 <- gg1 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
-#gg1 <- gg1 +  coord_map("polyconic") 
+gg1 <- gg1 +  coord_map("polyconic") 
 gg1 <- gg1 + facet_wrap(~Location.Description)
 gg1 <- gg1 + labs(x=NULL, y=NULL, 
                   title="Crime Rates in Cook County",
@@ -364,12 +364,12 @@ gg1 <- gg1 + labs(x=NULL, y=NULL,
 gg1
 ```
 
-```{r}
+```{r, fig.width=15,fig.height=15}
 library(rgdal)
 
 gg2 <- ggplot()
+gg2 <- gg2 + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill=NA, size=0.5) 
 gg2 <- gg2 + stat_density2d(data=Crime, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
-gg2 <- gg2 + geom_polygon(data=cook_county, aes(x=long, y=lat, group=group), colour="black", fill=NA, size=0.5) 
 gg2 <- gg2 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
 gg2 <- gg2 + coord_map("polyconic") 
 gg2 <- gg2 + facet_wrap(~Primary.Type)
@@ -377,6 +377,7 @@ gg2 <- gg2 + labs(x=NULL, y=NULL,
                   title="Crime Rates in Cook County",
                   subtitle=NULL,
                   caption="Source: data.ct.gov")
+gg2 <- gg2 + cleanup
 gg2
 ```
 
