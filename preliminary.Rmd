@@ -7,17 +7,60 @@ output: html_document
 
 ```{r}
 #load data and library
+library(tidyr)
+library(dplyr)
+library(choroplethr)
+library(ggplot2)
+require(maptools)
+require(tigris)
+require(acs)
+require(stringr)
+require(leaflet)
+library(choroplethrMaps)
+library(ggmap)
+
+api.key.install('23548fe7e771e8b0aeb4dd6e1ac95f7df1146a00')
+```
+
 
 Crime = read.csv('Crime_sample_2010_to_2017.csv')
 Crime = Crime %>%
   mutate(Date = as.POSIXct(strptime(Date, "%Y-%m-%d %H:%M:%S")))
 
-library(dplyr)
-library(tidyr)
-library(choroplethr)
-library(ggplot2)
+
 
 head(Crime)
+
+
+```{r}
+Crime = read.csv('Crime_sample_2010_to_2017.csv')
+
+library(plyr)
+
+x <- data.frame(count(Crime, "Primary.Type"))
+y <- data.frame(count(Crime, "Location.Description"))
+
+colnames(x)[2] <- "type_count"
+colnames(y)[2] <- "location_count"
+
+y <- y %>%
+  arrange(-location_count)
+
+x <- x %>%
+  arrange(-type_count) 
+
+x <- x[1:15,]
+y <- y[1:15,]
+
+y
+Crime1 <- left_join(Crime, x)
+Crime2 <- left_join(Crime1, y)
+Crime2
+
+Crime <- Crime2 %>%
+  filter(type_count > 50) %>%
+  filter(!is.na(Latitude)) %>%
+  filter(location_count > 100)
 ```
 
 #Summary Statistics
@@ -31,10 +74,13 @@ Around 25% of crimes results in arrests.
 ```{r}
 sum(Crime$Arrest == 1)/nrow(Crime)
 sum(Crime$Domestic == 1)/nrow(Crime)
+```
 
+```{r}
 #arrest by crime type:
+detach("package:plyr", unload=TRUE) 
 
-temp=Crime %>% 
+temp = Crime %>% 
   select(Primary.Type, Arrest) %>%
   group_by(Primary.Type) %>%
   mutate(total_count = n()) %>%
@@ -129,11 +175,156 @@ ggplot(daily_trend, aes(hour, count, colour = Primary.Type)) + geom_line()
 Seasonal trend (by month) in number of crime by Primary Type
 
 ```{r, fig.width=15,fig.height=5}
+library(ggplot2)
 yearly_trend = Crime  %>% 
   filter(Year == 2010) %>%
   mutate(month = lubridate::month(Date)) %>%
   group_by(month, Primary.Type) %>%
   mutate(count = n())
 
-ggplot(yearly_trend, aes(month, count, colour=Primary.Type)) + geom_line()s
+ggplot(yearly_trend, aes(month, count, colour=Primary.Type)) + geom_line()
+```
+
+
+```{r}
+locations <- with(Crime, as.data.frame(cbind(Longitude, Latitude)))
+
+coordinates(locations) <- ~Longitude+Latitude
+
+proj4string(locations) <- CRS("+init=epsg:4326")
+CRS("+init=epsg:4326")
+```
+
+```{r}
+world_map <- map_data("state")
+world_map
+illinois <- subset(world_map, world_map$region=="illinois")
+
+county_illinois <- map_data('county', 'illinois')
+cook_county <- subset(county_illinois, county_illinois$subregion == "cook")
+cook_county
+
+map_primary_type <- qmap('chicago', zoom = 14, color = 'bw') +
+  geom_point(data=Crime, aes(x=Longitude, y=Latitude, colour=factor(Primary.Type), alpha=0.4, size = type_count))
+map_primary_type
+
+map_location_desc <- qmap('chicago', zoom = 13,color = 'bw') +
+  geom_point(data=Crime, aes(x=Longitude, y=Latitude, colour=factor(Location.Description)))
+map_location_desc
+
+map_arrest <- qmap('chicago', zoom = 14,color = 'bw', shape = 20) +
+  geom_point(data=Crime, aes(x=Longitude, y=Latitude, colour = Arrest))
+map_arrest
+
+map_domestic <- qmap('chicago', zoom = 12,color = 'bw', shape = 20) +
+  geom_point(data=Crime, aes(x=Longitude, y=Latitude, colour = Domestic))
+map_domestic
+```
+
+
+```{r}
+tracts <- tracts(state = 'IL', cb=TRUE)
+
+fetched <- acs.fetch(
+  geography = geo.make(state = "IL", county="*", tract="*"),
+  endyear = 2012, span = 5,
+  table.number = "B19001",
+  col.names = "pretty"
+)
+
+names(attributes(fetched))
+attr(fetched, "acs.colnames")
+
+acs_df <- data.frame(
+  paste0(
+    str_pad(fetched@geography$state, 2, "left", pad="0"),
+    str_pad(fetched@geography$county, 3, "left", pad="0"),
+    str_pad(fetched@geography$tract, 6, "left", pad="0")),
+  fetched@estimate[,c("Household Income: Total:", "Household Income: $200,000 or more")],
+  stringsAsFactors = FALSE)
+
+  
+acs_df           <- select(acs_df, 1:3) %>% tbl_df()
+rownames(acs_df) <- 1:nrow(acs_df)
+names(acs_df)    <- c("GEOID", "total", "over_200")
+acs_df$percent   <- 100*(acs_df$over_200/acs_df$total)
+```
+
+```{r}
+df_merged <- geo_join(tracts, acs_df, "GEOID", "GEOID")
+
+# there are some tracts with no land that we should exclude
+df_merged <- df_merged[df_merged$ALAND>0,]
+```
+
+```{r}
+popup <- paste0("GEOID: ", df_merged$GEOID, "<br>", "Percent of Households above $200k: ", round(df_merged$percent,2))
+pal <- colorNumeric(
+  palette = "YlGnBu",
+  domain = df_merged$percent
+)
+```
+
+```{r}
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data = df_merged, 
+              fillColor = ~pal(percent), 
+              color = "#b2aeae", # you need to use hex colors
+              fillOpacity = 0.7, 
+              weight = 1, 
+              smoothFactor = 0.2,
+              popup = popup) %>%
+  addLegend(pal = pal, 
+            values = df_merged$percent, 
+            position = "bottomright", 
+            title = "Percent of Households<br>above $200k",
+            labFormat = labelFormat(suffix = "%")) 
+```
+
+```{r}
+library(rgdal)
+
+gg <- ggplot()
+gg <- gg + stat_density2d(data=Crime, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
+gg <- gg + geom_polygon(data=cook_county, aes(x=long, y=lat, group=group), colour="black", fill=NA, size=0.5) 
+gg <- gg + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
+gg <- gg +  coord_map("polyconic") 
+gg <- gg + labs(x=NULL, y=NULL, 
+                  title="Crime Rates in Cook County",
+                  subtitle=NULL,
+                  caption="Source: data.ct.gov")
+gg
+```
+
+```{r}
+library(rgdal)
+
+gg1 <- ggplot()
+gg1 <- gg1 + stat_density2d(data=Crime, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
+gg1 <- gg1 + geom_polygon(data=cook_county, aes(x=long, y=lat, group=group), colour="black", fill=NA, size=0.5) 
+gg1 <- gg1 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
+gg1 <- gg1 +  coord_map("polyconic") 
+gg1 <- gg1 + facet_wrap(~Location.Description)
+gg1 <- gg1 + labs(x=NULL, y=NULL, 
+                  title="Crime Rates in Cook County",
+                  subtitle=NULL,
+                  caption="Source: data.ct.gov")
+gg1
+```
+
+```{r}
+library(rgdal)
+
+gg2 <- ggplot()
+gg2 <- gg2 + stat_density2d(data=Crime, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
+gg2 <- gg2 + geom_polygon(data=cook_county, aes(x=long, y=lat, group=group), colour="black", fill=NA, size=0.5) 
+gg2 <- gg2 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
+gg2 <- gg2 + coord_map("polyconic") 
+gg2 <- gg2 + facet_wrap(~Primary.Type)
+gg2 <- gg2 + labs(x=NULL, y=NULL, 
+                  title="Crime Rates in Cook County",
+                  subtitle=NULL,
+                  caption="Source: data.ct.gov")
+gg2
 ```
