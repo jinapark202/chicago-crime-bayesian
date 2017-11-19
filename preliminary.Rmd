@@ -22,29 +22,16 @@ library(ggmap)
 api.key.install('23548fe7e771e8b0aeb4dd6e1ac95f7df1146a00')
 ```
 
-
-Crime = read.csv('Crime_sample_2010_to_2017.csv')
-<<<<<<< HEAD
-library(dplyr)
-library(tidyr)
-library(choroplethr)
-library(ggplot2)
-=======
-Crime = Crime %>%
-  mutate(Date = as.POSIXct(strptime(Date, "%Y-%m-%d %H:%M:%S")))
-
-
->>>>>>> a68bb0351696c88cd1b3e50061428f77f0c3399a
-
-Crime = Crime %>%
-  mutate(Date = as.POSIXct(strptime(Date, "%Y-%m-%d %H:%M:%S")))
-
-head(Crime)
-
-
 ```{r}
 Crime = read.csv('Crime_sample_2010_to_2017.csv')
 
+Crime = Crime %>%
+  mutate(Date = as.POSIXct(strptime(Date, "%Y-%m-%d %H:%M:%S")))
+
+```
+
+
+```{r}
 library(plyr)
 
 x <- data.frame(count(Crime, "Primary.Type"))
