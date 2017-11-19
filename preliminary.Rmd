@@ -286,27 +286,76 @@ leaflet() %>%
 
 ```{r}
 library(rgdal)
-
+cleanup <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = 'white', colour = 'white'),
+        axis.line = element_line(colour = "white"), legend.position="none",
+        axis.ticks=element_blank(), axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+towntracts <- readOGR(dsn="chicago_tracts_2010", layer="geo_export_9588a35d-8dfa-4dd9-9d49-6cdfc941d52b")
 gg <- ggplot()
+gg <- gg + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill="grey90", size=0.5) 
 gg <- gg + stat_density2d(data=Crime, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
-gg <- gg + geom_polygon(data=cook_county, aes(x=long, y=lat, group=group), colour="black", fill=NA, size=0.5) 
 gg <- gg + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
-gg <- gg +  coord_map("polyconic") 
-gg <- gg + labs(x=NULL, y=NULL, 
-                  title="Crime Rates in Cook County",
+#gg <- gg +  coord_map("polyconic")
+gg <- gg + labs(x=NULL, y=NULL,
+                  title="Crime Rates in Chicago",
                   subtitle=NULL,
                   caption="Source: data.ct.gov")
+gg <- gg + cleanup
 gg
 ```
+
+```{r}
+Crime_2010 <- Crime %>% filter(Year == 2010)
+gg2010 <- ggplot()
+gg2010 <- gg2010 + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill="grey90", size=0.5) 
+gg2010 <- gg2010 + stat_density2d(data=Crime_2010, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
+gg2010 <- gg2010 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
+#gg <- gg +  coord_map("polyconic")
+gg2010 <- gg2010 + labs(x=NULL, y=NULL,
+                  title="Crime Rates in Chicago",
+                  subtitle=NULL,
+                  caption="Source: data.ct.gov")
+gg2010 <- gg2010 + cleanup
+gg2010
+
+Crime_2013 <- Crime %>% filter(Year == 2013)
+gg2013 <- ggplot()
+gg2013 <- gg2013 + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill="grey90", size=0.5) 
+gg2013 <- gg2013 + stat_density2d(data=Crime_2013, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
+gg2013 <- gg2013 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
+#gg <- gg +  coord_map("polyconic")
+gg2013 <- gg2013 + labs(x=NULL, y=NULL,
+                  title="Crime Rates in Chicago",
+                  subtitle=NULL,
+                  caption="Source: data.ct.gov")
+gg2013 <- gg2013 + cleanup
+gg2013
+
+
+Crime_2016 <- Crime %>% filter(Year == 2016)
+gg2016 <- ggplot()
+gg2016 <- gg2016 + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill="grey90", size=0.5) 
+gg2016 <- gg2016 + stat_density2d(data=Crime_2016, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
+gg2016 <- gg2016 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
+#gg <- gg +  coord_map("polyconic")
+gg2016 <- gg2016 + labs(x=NULL, y=NULL,
+                  title="Crime Rates in Chicago",
+                  subtitle=NULL,
+                  caption="Source: data.ct.gov")
+gg2016 <- gg2016 + cleanup
+gg2016
+```
+
 
 ```{r}
 library(rgdal)
 
 gg1 <- ggplot()
+gg1 <- gg1 + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill=NA, size=0.5, alpha=0.5) 
 gg1 <- gg1 + stat_density2d(data=Crime, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
-gg1 <- gg1 + geom_polygon(data=cook_county, aes(x=long, y=lat, group=group), colour="black", fill=NA, size=0.5) 
 gg1 <- gg1 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
-gg1 <- gg1 +  coord_map("polyconic") 
+#gg1 <- gg1 +  coord_map("polyconic") 
 gg1 <- gg1 + facet_wrap(~Location.Description)
 gg1 <- gg1 + labs(x=NULL, y=NULL, 
                   title="Crime Rates in Cook County",
