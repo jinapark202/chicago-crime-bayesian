@@ -130,8 +130,8 @@ summary(illinois_demog)
 
 ```{r}
 library(plyr)
-x <- data.frame(count(Crime,Primary.Type))
-y <- data.frame(count(Crime, Location.Description))
+x <- data.frame(count(Crime,"Primary.Type"))
+y <- data.frame(count(Crime, "Location.Description"))
 
 colnames(x)[2] <- "type_count"
 colnames(y)[2] <- "location_count"
@@ -144,8 +144,6 @@ x <- x %>%
 
 x <- x[1:15,]
 y <- y[1:15,]
-x
-y
 
 Crime1 <- left_join(Crime, x)
 Crime2 <- left_join(Crime, y)
@@ -182,6 +180,7 @@ a <- plotGoogleMaps(locations, zoom = 19)
 ```{r}
 library(maps)
 library(ggplot2)
+library(ggmap)
 world_map <- map_data("state")
 world_map
 illinois <- subset(world_map, world_map$region=="illinois")
