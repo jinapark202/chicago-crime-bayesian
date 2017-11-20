@@ -1,10 +1,59 @@
 ---
 title: "Project Checkpoint 4"
-author: "Phuc Nguyen"
+author: "Phuc Nguyen, Jina Park"
 date: "November 14, 2017"
 output: html_document
 ---
 
+## Progress Made
+- Some basic summary statistics of our crime data such as the percentage of arrests, percentage of crimes for each type, etc.
+
+- Created bar plot visualization for the count of crimes based on location descriptions, crime type, and district.
+
+- Cleaned the Crime data to only include data with longitude/latitude data and limited the data to only the top 15 location descriptions and crime types.
+
+- Examined the monthly and hourly trends of crimes by type.
+
+- Plotted our crime data on a map of Chicago based on location descriptions and crime type.
+
+- Density maps based on crime type and location description.
+
+- Density map for 2010, 2013, 2016, and overall.
+
+- Maps based on the count of specific crime types in various Chicago tracts.
+
+- Made Chicago demographic maps for variables such as population, median rent, median age, and percentage of various racial groups.
+
+## Group Roles
+
+**Jina:**
+
+- Organized the code and wrote this report
+
+- Cleaned the graphs (added titles, labels, etc.)
+
+- Cleaned the demographic data and created the demographic maps of Chicago.
+
+- Plotted the Crime data over the maps of Chicago
+
+- Cleaned the Crime data to exclude missing location data and include only the most popular crime types and location descriptions.
+
+- Collaborated with Phuc to create the density maps of Chicago over time and by crime types and location descriptions.
+
+
+**Phuc:**
+
+- Worked with shapefiles to get tract data of Chicago for the map density visualizations.
+
+- Created most of the summary statistics and bar graphs for the Crime data.
+
+- Created maps focused on specific crime types in various Chicago tracts such as assault.
+
+- Collaborated with Jina to create the density maps of Chicago over time and by crime types and location descriptions.
+
+-------------------------------------------------------------------
+
+### Load Libraries
 ```{r}
 #load data and library
 library(tidyr)
@@ -22,6 +71,7 @@ library(ggmap)
 api.key.install('23548fe7e771e8b0aeb4dd6e1ac95f7df1146a00')
 ```
 
+### Data
 ```{r}
 Crime = read.csv('Crime_sample_2010_to_2017.csv')
 
@@ -32,6 +82,9 @@ Crime = Crime %>%
 
 
 ```{r}
+#Clean the Crime data to only include the top 15 location descriptions and top 15 crime types.
+#Got rid of data without location coordinates.
+
 library(plyr)
 
 x <- data.frame(count(Crime, "Primary.Type"))
@@ -49,10 +102,8 @@ x <- x %>%
 x <- x[1:15,]
 y <- y[1:15,]
 
-y
 Crime1 <- left_join(Crime, x)
 Crime2 <- left_join(Crime1, y)
-Crime2
 
 Crime <- Crime2 %>%
   filter(type_count > 50) %>%
@@ -62,22 +113,19 @@ Crime <- Crime2 %>%
 
 #Summary Statistics
 
-Barplot for categorial variables of interests:
-
-*Arrest
-
-Around 25% of crimes results in arrests.
+- Approximately 25% of crimes results in arrests and 17.46% of crimes in Chicago are domestic, which is defined as a violent confrontation between family or household members.
 
 ```{r}
 sum(Crime$Arrest == 1)/nrow(Crime)
 sum(Crime$Domestic == 1)/nrow(Crime)
 ```
 
+
+### Arrest rate by crime type
 ```{r}
-#arrest by crime type:
 detach("package:plyr", unload=TRUE) 
 
-temp = Crime %>% 
+arrest_rate_by_crime = Crime %>% 
   select(Primary.Type, Arrest) %>%
   group_by(Primary.Type) %>%
   mutate(total_count = n()) %>%
@@ -85,80 +133,105 @@ temp = Crime %>%
   mutate(arrest_count = n()) %>%
   mutate(arrest_rate = arrest_count/total_count) %>%
   distinct() %>%
-  arrange(desc(arrest_count))
+  arrange(desc(arrest_rate))
+arrest_rate_by_crime
+```
 
-temp
+### Percentage of Crimes for Each Type of Crime
+```{r}
+percentage_of_crime_types = Crime %>% 
+  select(Primary.Type) %>%
+  group_by(Primary.Type) %>%
+  mutate(total_count = n()) %>%
+  mutate(percentage = n()) %>%
+  mutate(percentage = round(total_count/nrow(Crime) * 100, 2)) %>%
+  distinct() %>%
+  arrange(desc(percentage))
+percentage_of_crime_types
 ```
 
 
-#Visualization
+### Percentage of Crimes for Each Location Description
+```{r}
+percentage_of_crime_location = Crime %>% 
+  select(Location.Description) %>%
+  group_by(Location.Description) %>%
+  mutate(total_count = n()) %>%
+  mutate(percentage = n()) %>%
+  mutate(percentage = round(total_count/nrow(Crime) * 100, 2)) %>%
+  distinct() %>%
+  arrange(desc(percentage))
+percentage_of_crime_location
+```
+```
 
-*Arrest
+# Visualization
 
+### Count by Crime Type
 ```{r}
 data = Crime %>% 
-  filter(Arrest == 'true')
-ggplot(data, aes(Primary.Type)) + geom_bar() +
-  theme(axis.text.x = element_text( angle=90, hjust=1))
-
+  filter(Crime$Arrest == 1)
+ggplot(data, aes(Primary.Type)) + geom_bar() + 
+  theme(axis.text.x = element_text( angle=90, hjust=1)) +
+  labs(title = "Count of Crimes by Type in Chicago", x = "Crime Type", y = "Count")
 ```
 
-*Primary Type
+### Count by Crime and Arrest Type
 
 ```{r}
-ggplot(Crime, aes(x=Primary.Type, fill=Arrest)) + geom_bar() + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+ggplot(Crime, aes(x=Primary.Type, fill=as.factor(Arrest))) + geom_bar() + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "Count of Arrests by Crime Type", x = "Crime Type", y = "Count")
 ```
 
-*Domestic
-
+### Domestic Crimes by Crime Type
 ```{r}
-sum(Crime$Domestic == 'true')/nrow(Crime)
 ggplot(Crime, aes(x=Primary.Type, fill=as.factor(Domestic))) + geom_bar() + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "Count of Domestic Crimes by Type", x = "Crime Type", y = "Count")
 ```
 
-*Count of crime per District
+### Count of Crimes by District
 
 ```{r}
-range(Crime$District)
-ggplot(Crime, aes(District)) + geom_bar()
+ggplot(Crime, aes(District)) +
+  geom_bar() +
+  labs(title = "Count of Crimes by District", x = "District Number", y = "Count")
 ```
 
-*Location Description
-
-Only include locations whose counts are in the upper quantile.
-
+### Count by Location Description
 
 ```{r}
-temp = Crime %>% 
-  group_by(Location.Description) %>%
-  summarise(count = n()) %>%
-  filter(count >= quantile(count, 0.75))
-
-data = Crime %>%
-  left_join( temp, by='Location.Description') %>%
-  filter(! is.na(count))
-
-ggplot(data, aes(Location.Description)) + geom_bar() +
-  theme(axis.text.x = element_text( angle = 90, hjust = 1))
+ggplot(Crime, aes(Location.Description)) + geom_bar() +
+  theme(axis.text.x = element_text( angle = 90, hjust = 1)) +
+  labs(title = "Count of Crimes by Location Description", x = "Location Description", y = "Count")
 ```
 
-Type of crime by location description
+### Count of crimes by location description and type
 
 ```{r, fig.width=15,fig.height=5}
 ggplot(data, aes(Location.Description, fill=Primary.Type)) + geom_bar() +
-  theme(axis.text.x = element_text( angle = 90, hjust = 1))
+  theme(axis.text.x = element_text( angle = 90, hjust = 1)) + 
+  labs(title = "Count of Crimes by Location Description and Crime Type", x = "Location Description", y = "Count")
 ```
 
-Arrest by location description
+### Count of Arrests by Location Description
 
 ```{r}
-ggplot(data, aes(Location.Description, fill=as.factor(Arrest))) + geom_bar() +
-  theme(axis.text.x = element_text( angle = 90, hjust = 1))
+ggplot(Crime, aes(x=Location.Description, fill=as.factor(Arrest))) +   geom_bar() +  
+  theme(axis.text.x = element_text( angle = 90, hjust = 1)) + 
+  labs(title = "Count of Arrests by Location Description", x = "Location Description", y = "Count")
 ```
 
-Daily trend (time in a day) in number of crime by Primary Type
+### Count of Domestic Crimes by Location Description
+
+```{r}
+ggplot(Crime, aes(x=Location.Description, fill=as.factor(Domestic))) +   geom_bar() +  
+  theme(axis.text.x = element_text( angle = 90, hjust = 1)) + 
+  labs(title = "Count of Domestic Crimes by Location Description", x = "Location Description", y = "Count")
+```
+
+### Hourly trend of Crimes by Primary Type
 
 ```{r, fig.width=15,fig.height=5}
 daily_trend = Crime  %>% 
@@ -166,10 +239,11 @@ daily_trend = Crime  %>%
   group_by(hour, Primary.Type) %>%
   mutate( count = n())
 
-ggplot(daily_trend, aes(hour, count, colour = Primary.Type)) + geom_line()
+ggplot(daily_trend, aes(hour, count, colour = Primary.Type)) + geom_line() +
+  labs(title = "Hourly Trend of Crimes by Primary Type", x = "Hour", y = "Count")
 ```
 
-Seasonal trend (by month) in number of crime by Primary Type
+### Monthly Trend of Crimes by Primary Type
 
 ```{r, fig.width=15,fig.height=5}
 library(ggplot2)
@@ -179,11 +253,11 @@ yearly_trend = Crime  %>%
   group_by(month, Primary.Type) %>%
   mutate(count = n())
 
-ggplot(yearly_trend, aes(month, count, colour=Primary.Type)) + geom_line()
+ggplot(yearly_trend, aes(month, count, colour=Primary.Type)) + geom_line() + labs(title = "Monthly Trend of Crimes by Primary Type", y = "Count", x = "Month")
 ```
 
 
-## Map viz
+# Map Visualizations
 
 Project latitude and longitude to tract polygon
 
@@ -199,25 +273,28 @@ CRS("+init=epsg:4326")
 
 ```{r}
 world_map <- map_data("state")
-world_map
+
 illinois <- subset(world_map, world_map$region=="illinois")
 
 county_illinois <- map_data('county', 'illinois')
 cook_county <- subset(county_illinois, county_illinois$subregion == "cook")
-cook_county
 
+# Map of Crimes by Type
 map_primary_type <- qmap('chicago', zoom = 14, color = 'bw') +
   geom_point(data=Crime, aes(x=Longitude, y=Latitude, colour=factor(Primary.Type), alpha=0.4, size = type_count))
 map_primary_type
 
+# Map of Crimes by Location Description
 map_location_desc <- qmap('chicago', zoom = 13,color = 'bw') +
   geom_point(data=Crime, aes(x=Longitude, y=Latitude, colour=factor(Location.Description)))
 map_location_desc
 
+# Map of Arrests in Chicago
 map_arrest <- qmap('chicago', zoom = 14,color = 'bw', shape = 20) +
   geom_point(data=Crime, aes(x=Longitude, y=Latitude, colour = Arrest))
 map_arrest
 
+# Map of Chicago by Domestic Type
 map_domestic <- qmap('chicago', zoom = 12,color = 'bw', shape = 20) +
   geom_point(data=Crime, aes(x=Longitude, y=Latitude, colour = Domestic))
 map_domestic
@@ -267,31 +344,24 @@ pal <- colorNumeric(
 )
 ```
 
-```{r}
-leaflet() %>%
-  addProviderTiles("CartoDB.Positron") %>%
-  addPolygons(data = df_merged, 
-              fillColor = ~pal(percent), 
-              color = "#b2aeae", # you need to use hex colors
-              fillOpacity = 0.7, 
-              weight = 1, 
-              smoothFactor = 0.2,
-              popup = popup) %>%
-  addLegend(pal = pal, 
-            values = df_merged$percent, 
-            position = "bottomright", 
-            title = "Percent of Households<br>above $200k",
-            labFormat = labelFormat(suffix = "%")) 
-```
 
 ```{r}
 library(rgdal)
+```
+
+#### Change the format of the map to make it look cleaner
+```{r}
 cleanup <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         panel.background = element_rect(fill = 'white', colour = 'white'),
         axis.line = element_line(colour = "white"), legend.position="none",
         axis.ticks=element_blank(), axis.text.x=element_blank(),
         axis.text.y=element_blank())
+```
+
+### Density of Crime Rates in Chicago Overall
+```{r}
 towntracts <- readOGR(dsn="chicago_tracts_2010", layer="geo_export_9588a35d-8dfa-4dd9-9d49-6cdfc941d52b")
+
 gg <- ggplot()
 gg <- gg + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill="grey90", size=0.5) 
 gg <- gg + stat_density2d(data=Crime, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
@@ -300,11 +370,12 @@ gg <- gg + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Dist
 gg <- gg + labs(x=NULL, y=NULL,
                   title="Crime Rates in Chicago",
                   subtitle=NULL,
-                  caption="Source: data.ct.gov")
+                  caption="Source: City of Chicago")
 gg <- gg + cleanup
 gg
 ```
 
+### Density of Crime Rates in 2010
 ```{r}
 Crime_2010 <- Crime %>% filter(Year == 2010)
 gg2010 <- ggplot()
@@ -315,10 +386,13 @@ gg2010 <- gg2010 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", na
 gg2010 <- gg2010 + labs(x=NULL, y=NULL,
                   title="Crime Rates in Chicago",
                   subtitle=NULL,
-                  caption="Source: data.ct.gov")
+                  caption="Source: City of Chicago")
 gg2010 <- gg2010 + cleanup
 gg2010
+```
 
+### Density of Crime Rates in Chicago in 2013
+```{r}
 Crime_2013 <- Crime %>% filter(Year == 2013)
 gg2013 <- ggplot()
 gg2013 <- gg2013 + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill="grey90", size=0.5) 
@@ -328,11 +402,13 @@ gg2013 <- gg2013 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", na
 gg2013 <- gg2013 + labs(x=NULL, y=NULL,
                   title="Crime Rates in Chicago",
                   subtitle=NULL,
-                  caption="Source: data.ct.gov")
+                  caption="Source: City of Chicago")
 gg2013 <- gg2013 + cleanup
 gg2013
+```
 
-
+### Density of Crime Rates in 2016
+```{r}
 Crime_2016 <- Crime %>% filter(Year == 2016)
 gg2016 <- ggplot()
 gg2016 <- gg2016 + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill="grey90", size=0.5) 
@@ -342,15 +418,13 @@ gg2016 <- gg2016 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", na
 gg2016 <- gg2016 + labs(x=NULL, y=NULL,
                   title="Crime Rates in Chicago",
                   subtitle=NULL,
-                  caption="Source: data.ct.gov")
+                  caption="Source: City of Chicago")
 gg2016 <- gg2016 + cleanup
 gg2016
 ```
 
-
+### Density of Crime Rates in Chicago by Location Description
 ```{r, fig.width=15, fig.height=15}
-library(rgdal)
-
 gg1 <- ggplot()
 gg1 <- gg1 + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill=NA, size=0.5, alpha=0.5) 
 gg1 <- gg1 + stat_density2d(data=Crime, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
@@ -358,16 +432,15 @@ gg1 <- gg1 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Di
 #gg1 <- gg1 +  coord_map("polyconic") 
 gg1 <- gg1 + facet_wrap(~Location.Description)
 gg1 <- gg1 + labs(x=NULL, y=NULL, 
-                  title="Crime Rates in Cook County",
+                  title="Crime Rates in Chicago",
                   subtitle=NULL,
-                  caption="Source: data.ct.gov")
+                  caption="Source: City of Chicago")
 gg1 <- gg1 + cleanup
 gg1
 ```
 
+### Density of Crime Rates in Chicago by Crime Type
 ```{r, fig.width=15, fig.height=15}
-library(rgdal)
-
 gg2 <- ggplot()
 gg2 <- gg2 + stat_density2d(data=Crime, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
 gg2 <- gg2 + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill=NA, size=0.5) 
@@ -375,14 +448,16 @@ gg2 <- gg2 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Di
 gg2 <- gg2 + coord_map("polyconic") 
 gg2 <- gg2 + facet_wrap(~Primary.Type)
 gg2 <- gg2 + labs(x=NULL, y=NULL, 
-                  title="Crime Rates in Cook County",
+                  title="Crime Rates in Chicago",
                   subtitle=NULL,
-                  caption="Source: data.ct.gov")
+                  caption="Source: City of Chicago")
 gg2 <- gg2 + cleanup
 gg2
 ```
 
+# Demographic Maps
 
+### Loading Libraries 
 ```{r}
 library(choroplethr)
 library(choroplethrMaps)
@@ -394,8 +469,10 @@ library(devtools)
 install_github('arilamstein/choroplethrZip@v1.5.0')
 
 library(choroplethrZip)
+```
 
-
+### Cleaning Demographic Data
+```{r}
 data(df_pop_zip)
 data(df_zip_demographics)
 
@@ -420,36 +497,67 @@ colnames(zip_median_rent)[2] <- "value"
 zip_median_age <- df_zip_demographics[c("region", "median_age")]
 colnames(zip_median_age)[2] <- "value"
 
-#-------------------------------------------
-
 data(zip.regions)
 chi_nap_elg <- subset(zip.regions, zip.regions$cbsa.title=="Chicago-Naperville-Elgin, IL-IN-WI")
 cook_county <- subset(chi_nap_elg, chi_nap_elg$county.name == "cook")
 cook_fips <- cook_county$county.fips.numeric
+```
 
+-------------------------------------------
 
+### Population of Chicago by Zipcode
+```{r}
 zip_choropleth(df_pop_zip, 
                county_zoom = cook_fips, 
-               title="Population of Cook County") + coord_map()
+               title="Population of Chicago by Zipcode") + coord_map()
+```
+
+### White Population of Chicago by Zipcode
+```{r}
 zip_choropleth(zip_percent_white, 
                county_zoom = cook_fips, 
-               title="White Population of Cook County") + coord_map()
+               title="White Population of Chicago by Zipcode") +
+coord_map()
+```
+
+### Black Population of Chicago by Zipcode
+```{r}
 zip_choropleth(zip_percent_black, 
                county_zoom = cook_fips, 
-               title="Black Population of Cook County") + coord_map()
+               title="Black Population of Chicago by Zipcode") + coord_map()
+```
+
+### Asian Population of Chicago by Zipcode
+```{r}
 zip_choropleth(zip_percent_asian, 
                county_zoom = cook_fips, 
-               title="Asian Population of Cook County") + coord_map()
+               title="Asian Population of Chicago by Zipcode") + coord_map()
+```
+
+### Hispanic Population of Chicago by Zipcode
+```{r}
 zip_choropleth(zip_percent_hispanic, 
                county_zoom = cook_fips, 
-               title="Hispanic Population of Cook County") + coord_map()
+               title="Hispanic Population of Chicago by Zipcode") + coord_map()
+```
+
+### Per Capita Income of Chicago by Zipcode
+```{r}
 zip_choropleth(zip_per_capita_income, 
                county_zoom = cook_fips, 
-               title="Per Capita Income of Cook County") + coord_map()
+               title="Per Capita Income of Chicago by Zipcode") + coord_map()
+```
+
+### Median Rent of Chicago by Zipcode
+```{r}
 zip_choropleth(zip_median_rent, 
                county_zoom = cook_fips, 
-               title="Median Rent of Cook County") + coord_map()
+               title="Median Rent of Chicago by Zipcode") + coord_map()
+```
+        
+### Median Age of Chicago by Zipcode  
+```{r}
 zip_choropleth(zip_median_age, 
                county_zoom = cook_fips, 
-               title="Median Age of Cook County") + coord_map()
+               title="Median Age of Chicago by Zipcode") + coord_map()
 ```
