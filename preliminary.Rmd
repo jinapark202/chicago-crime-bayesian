@@ -382,3 +382,74 @@ gg2 <- gg2 + cleanup
 gg2
 ```
 
+
+```{r}
+library(choroplethr)
+library(choroplethrMaps)
+library(mapproj)
+library(ggplot2)
+
+#install.packages("devtools")
+library(devtools)
+install_github('arilamstein/choroplethrZip@v1.5.0')
+
+library(choroplethrZip)
+
+
+data(df_pop_zip)
+data(df_zip_demographics)
+
+zip_percent_white <- df_zip_demographics[c("region", "percent_white")]
+colnames(zip_percent_white)[2] <- "value"
+
+zip_percent_black <- df_zip_demographics[c("region", "percent_black")]
+colnames(zip_percent_black)[2] <- "value"
+
+zip_percent_asian <- df_zip_demographics[c("region", "percent_asian")]
+colnames(zip_percent_asian)[2] <- "value"
+
+zip_percent_hispanic <- df_zip_demographics[c("region", "percent_hispanic")]
+colnames(zip_percent_hispanic)[2] <- "value"
+
+zip_per_capita_income <- df_zip_demographics[c("region", "per_capita_income")]
+colnames(zip_per_capita_income)[2] <- "value"
+
+zip_median_rent <- df_zip_demographics[c("region", "median_rent")]
+colnames(zip_median_rent)[2] <- "value"
+
+zip_median_age <- df_zip_demographics[c("region", "median_age")]
+colnames(zip_median_age)[2] <- "value"
+
+#-------------------------------------------
+
+data(zip.regions)
+chi_nap_elg <- subset(zip.regions, zip.regions$cbsa.title=="Chicago-Naperville-Elgin, IL-IN-WI")
+cook_county <- subset(chi_nap_elg, chi_nap_elg$county.name == "cook")
+cook_fips <- cook_county$county.fips.numeric
+
+
+zip_choropleth(df_pop_zip, 
+               county_zoom = cook_fips, 
+               title="Population of Cook County") + coord_map()
+zip_choropleth(zip_percent_white, 
+               county_zoom = cook_fips, 
+               title="White Population of Cook County") + coord_map()
+zip_choropleth(zip_percent_black, 
+               county_zoom = cook_fips, 
+               title="Black Population of Cook County") + coord_map()
+zip_choropleth(zip_percent_asian, 
+               county_zoom = cook_fips, 
+               title="Asian Population of Cook County") + coord_map()
+zip_choropleth(zip_percent_hispanic, 
+               county_zoom = cook_fips, 
+               title="Hispanic Population of Cook County") + coord_map()
+zip_choropleth(zip_per_capita_income, 
+               county_zoom = cook_fips, 
+               title="Per Capita Income of Cook County") + coord_map()
+zip_choropleth(zip_median_rent, 
+               county_zoom = cook_fips, 
+               title="Median Rent of Cook County") + coord_map()
+zip_choropleth(zip_median_age, 
+               county_zoom = cook_fips, 
+               title="Median Age of Cook County") + coord_map()
+```
