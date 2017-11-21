@@ -1,0 +1,31 @@
+---
+title: "Project Checkpoint 5"
+author: "Jina Park, Phuc Nguyen"
+date: "11/21/2017"
+output: html_document
+---
+
+
+### Research Question 1
+
+Predicting hotspots of specific crimes and how they changed over time.
+
+http://web.a.ebscohost.com/ehost/pdfviewer/pdfviewer?vid=2&sid=2a55062b-9e17-4e02-97d1-62d1ceee3d6a%40sessionmgr4007
+
+
+**Models:**
+
+
+### Research Question 2
+
+Examining how crime rates have changed over time and differences in these changes across neighborhoods.
+
+https://www.ml.cmu.edu/research/dap-papers/dap_flaxman.pdf
+
+
+**Models:**
+
+
+
+
+
