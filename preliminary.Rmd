@@ -190,7 +190,7 @@ Project latitude and longitude to tract polygon
 
 ```{r}
 locations <- with(Crime, as.data.frame(cbind(Longitude, Latitude)))
-
+locations <- locations[!is.na(locations$Longitude),]
 coordinates(locations) <- ~Longitude+Latitude
 
 proj4string(locations) <- CRS("+init=epsg:4326")
@@ -453,3 +453,69 @@ zip_choropleth(zip_median_age,
                county_zoom = cook_fips, 
                title="Median Age of Cook County") + coord_map()
 ```
+
+
+# Choropleth of crime
+
+```{r}
+
+#library(scales)
+towntracts_shp <- towntracts
+towntracts_df <- fortify(towntracts, region = "geoid10")
+crime_types = levels(Crime$Primary.Type)
+
+#check the CRS of the shapefile and coordinates
+locations <- with(Crime, as.data.frame(cbind(Longitude, Latitude)))
+locations <- locations[!is.na(locations$Longitude),]
+coordinates(locations) <- ~Longitude+Latitude
+proj4string(locations) <- CRS("+init=epsg:4326")
+print(locations@proj4string)
+print(towntracts_shp@proj4string)
+
+#needs to reassign CRS for shapefile
+new_CRS <- CRS("+init=epsg:4326 +proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+towntracts_shp <- sp::spTransform(towntracts_shp, new_CRS)
+
+
+
+for (i in 1:length(crime_types)){
+  #filter for current crime type
+  current_type = crime_types[i]
+  Current_Crimes = Crime %>% filter(Primary.Type == current_type)
+  
+  #get the coordinates
+  locations <- with(Current_Crimes, as.data.frame(cbind(Longitude, Latitude)))
+  locations <- locations[!is.na(locations$Longitude),]
+  if (nrow(locations) > 0){
+    coordinates(locations) <- ~Longitude+Latitude
+    proj4string(locations) <- CRS("+init=epsg:4326")
+    
+    
+    #prepping the data: project points to polygons
+    proj4string(towntracts_shp) <- new_CRS
+    proj4string(locations) <- new_CRS
+    by_tract <- over(locations, towntracts_shp)
+    by_tract <- by_tract %>%
+      group_by(geoid10) %>%
+      dplyr::summarise(total=n()) %>%
+      filter(!is.na(geoid10)) %>%
+      mutate(id = as.character(geoid10))
+    
+    #making choropleth
+    total_map <- left_join(towntracts_df, by_tract)
+    total_map$total[is.na(total_map$total)] <- 0 
+    hamden_ts <- ggplot() 
+    hamden_ts <- hamden_ts +  geom_polygon(data = total_map, aes(x=long, y=lat, group=group, fill=total), color = "black", size=0.2) 
+    hamden_ts <- hamden_ts + coord_map() 
+    hamden_ts <- hamden_ts + labs(title=paste("Crimes of type", toString(current_type), sep=" "), fill="total")
+    hamden_ts <- hamden_ts +  theme_nothing(legend=TRUE) 
+    print(hamden_ts)
+  }
+  
+
+}
+
+
+
+```
+
