@@ -308,50 +308,6 @@ map_domestic
 ```
 
 
-```{r}
-tracts <- tracts(state = 'IL', cb=TRUE)
-
-fetched <- acs.fetch(
-  geography = geo.make(state = "IL", county="*", tract="*"),
-  endyear = 2012, span = 5,
-  table.number = "B19001",
-  col.names = "pretty"
-)
-
-names(attributes(fetched))
-attr(fetched, "acs.colnames")
-
-acs_df <- data.frame(
-  paste0(
-    str_pad(fetched@geography$state, 2, "left", pad="0"),
-    str_pad(fetched@geography$county, 3, "left", pad="0"),
-    str_pad(fetched@geography$tract, 6, "left", pad="0")),
-  fetched@estimate[,c("Household Income: Total:", "Household Income: $200,000 or more")],
-  stringsAsFactors = FALSE)
-
-  
-acs_df           <- select(acs_df, 1:3) %>% tbl_df()
-rownames(acs_df) <- 1:nrow(acs_df)
-names(acs_df)    <- c("GEOID", "total", "over_200")
-acs_df$percent   <- 100*(acs_df$over_200/acs_df$total)
-```
-
-```{r}
-df_merged <- geo_join(tracts, acs_df, "GEOID", "GEOID")
-
-# there are some tracts with no land that we should exclude
-df_merged <- df_merged[df_merged$ALAND>0,]
-```
-
-```{r}
-# popup <- paste0("GEOID: ", df_merged$GEOID, "<br>", "Percent of Households above $200k: ", round(df_merged$percent,2))
-# pal <- scales::color_numeric(
-#   palette = "YlGnBu",
-#   domain = df_merged$percent
-# )
-```
-
-
 #### Change the format of the map to make it look cleaner
 ```{r}
 cleanup <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
@@ -505,17 +461,14 @@ for (i in 1:length(crime_types)){
     #making choropleth
     total_map <- left_join(towntracts_df, by_tract)
     total_map$total[is.na(total_map$total)] <- 0 
-    hamden_ts <- ggplot() 
-    hamden_ts <- hamden_ts +  geom_polygon(data = total_map, aes(x=long, y=lat, group=group, fill=total), color = "black", size=0.2) 
-    hamden_ts <- hamden_ts + coord_map() 
-    hamden_ts <- hamden_ts + labs(title=paste("Crimes of type", toString(current_type), sep=" "), fill="total")
-    hamden_ts <- hamden_ts +  theme_nothing(legend=TRUE) 
-    print(hamden_ts)
+    chicago_ts <- ggplot() 
+    chicago_ts <- chicago_ts +  geom_polygon(data = total_map, aes(x=long, y=lat, group=group, fill=total), color = "black", size=0.2) 
+    chicago_ts <- chicago_ts + coord_map() 
+    chicago_ts <- chicago_ts + labs(title=paste("Crimes of type", toString(current_type), sep=" "), fill="total")
+    chicago_ts <- chicago_ts +  theme_nothing(legend=TRUE) 
+    print(chicago_ts)
   }
-  
-
 }
-
 ```
 
 
