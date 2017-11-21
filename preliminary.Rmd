@@ -43,6 +43,8 @@ output: html_document
 
 **Phuc:**
 
+- Set up Git repository.
+
 - Worked with shapefiles to get tract data of Chicago for the map density visualizations.
 
 - Created most of the summary statistics and bar graphs for the Crime data.
@@ -67,6 +69,8 @@ require(stringr)
 require(leaflet)
 library(choroplethrMaps)
 library(ggmap)
+library(rgdal)
+library(scales)
 
 api.key.install('23548fe7e771e8b0aeb4dd6e1ac95f7df1146a00')
 ```
@@ -134,10 +138,12 @@ arrest_rate_by_crime = Crime %>%
   mutate(arrest_rate = arrest_count/total_count) %>%
   distinct() %>%
   arrange(desc(arrest_rate))
-arrest_rate_by_crime
+head(arrest_rate_by_crime)
+summary(arrest_rate_by_crime)
 ```
 
 ### Percentage of Crimes for Each Type of Crime
+
 ```{r}
 percentage_of_crime_types = Crime %>% 
   select(Primary.Type) %>%
@@ -147,11 +153,13 @@ percentage_of_crime_types = Crime %>%
   mutate(percentage = round(total_count/nrow(Crime) * 100, 2)) %>%
   distinct() %>%
   arrange(desc(percentage))
-percentage_of_crime_types
+head(percentage_of_crime_types)
+summary(percentage_of_crime_types)
 ```
 
 
 ### Percentage of Crimes for Each Location Description
+
 ```{r}
 percentage_of_crime_location = Crime %>% 
   select(Location.Description) %>%
@@ -161,8 +169,8 @@ percentage_of_crime_location = Crime %>%
   mutate(percentage = round(total_count/nrow(Crime) * 100, 2)) %>%
   distinct() %>%
   arrange(desc(percentage))
-percentage_of_crime_location
-```
+head(percentage_of_crime_location)
+summary(percentage_of_crime_location)
 ```
 
 # Visualization
@@ -268,7 +276,6 @@ locations <- locations[!is.na(locations$Longitude),]
 coordinates(locations) <- ~Longitude+Latitude
 
 proj4string(locations) <- CRS("+init=epsg:4326")
-CRS("+init=epsg:4326")
 ```
 
 ```{r}
@@ -337,17 +344,13 @@ df_merged <- df_merged[df_merged$ALAND>0,]
 ```
 
 ```{r}
-popup <- paste0("GEOID: ", df_merged$GEOID, "<br>", "Percent of Households above $200k: ", round(df_merged$percent,2))
-pal <- colorNumeric(
-  palette = "YlGnBu",
-  domain = df_merged$percent
-)
+# popup <- paste0("GEOID: ", df_merged$GEOID, "<br>", "Percent of Households above $200k: ", round(df_merged$percent,2))
+# pal <- scales::color_numeric(
+#   palette = "YlGnBu",
+#   domain = df_merged$percent
+# )
 ```
 
-
-```{r}
-library(rgdal)
-```
 
 #### Change the format of the map to make it look cleaner
 ```{r}
@@ -366,7 +369,7 @@ gg <- ggplot()
 gg <- gg + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill="grey90", size=0.5) 
 gg <- gg + stat_density2d(data=Crime, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
 gg <- gg + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
-#gg <- gg +  coord_map("polyconic")
+gg <- gg +  coord_map("polyconic")
 gg <- gg + labs(x=NULL, y=NULL,
                   title="Crime Rates in Chicago",
                   subtitle=NULL,
@@ -382,7 +385,7 @@ gg2010 <- ggplot()
 gg2010 <- gg2010 + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill="grey90", size=0.5) 
 gg2010 <- gg2010 + stat_density2d(data=Crime_2010, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
 gg2010 <- gg2010 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
-#gg <- gg +  coord_map("polyconic")
+gg <- gg +  coord_map("polyconic")
 gg2010 <- gg2010 + labs(x=NULL, y=NULL,
                   title="Crime Rates in Chicago",
                   subtitle=NULL,
@@ -398,7 +401,7 @@ gg2013 <- ggplot()
 gg2013 <- gg2013 + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill="grey90", size=0.5) 
 gg2013 <- gg2013 + stat_density2d(data=Crime_2013, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
 gg2013 <- gg2013 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
-#gg <- gg +  coord_map("polyconic")
+gg <- gg +  coord_map("polyconic")
 gg2013 <- gg2013 + labs(x=NULL, y=NULL,
                   title="Crime Rates in Chicago",
                   subtitle=NULL,
@@ -414,7 +417,7 @@ gg2016 <- ggplot()
 gg2016 <- gg2016 + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill="grey90", size=0.5) 
 gg2016 <- gg2016 + stat_density2d(data=Crime_2016, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
 gg2016 <- gg2016 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
-#gg <- gg +  coord_map("polyconic")
+gg <- gg +  coord_map("polyconic")
 gg2016 <- gg2016 + labs(x=NULL, y=NULL,
                   title="Crime Rates in Chicago",
                   subtitle=NULL,
@@ -429,7 +432,7 @@ gg1 <- ggplot()
 gg1 <- gg1 + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill=NA, size=0.5, alpha=0.5) 
 gg1 <- gg1 + stat_density2d(data=Crime, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
 gg1 <- gg1 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
-#gg1 <- gg1 +  coord_map("polyconic") 
+gg1 <- gg1 +  coord_map("polyconic") 
 gg1 <- gg1 + facet_wrap(~Location.Description)
 gg1 <- gg1 + labs(x=NULL, y=NULL, 
                   title="Crime Rates in Chicago",
@@ -454,6 +457,67 @@ gg2 <- gg2 + labs(x=NULL, y=NULL,
 gg2 <- gg2 + cleanup
 gg2
 ```
+
+### Count of crime incidents by Crime Type
+
+```{r}
+towntracts_shp <- towntracts
+towntracts_df <- fortify(towntracts, region = "geoid10")
+crime_types = levels(Crime$Primary.Type)
+
+#check the CRS of the shapefile and coordinates
+locations <- with(Crime, as.data.frame(cbind(Longitude, Latitude)))
+locations <- locations[!is.na(locations$Longitude),]
+coordinates(locations) <- ~Longitude+Latitude
+proj4string(locations) <- CRS("+init=epsg:4326")
+print(locations@proj4string)
+print(towntracts_shp@proj4string)
+
+#needs to reassign CRS for shapefile
+new_CRS <- CRS("+init=epsg:4326 +proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+towntracts_shp <- sp::spTransform(towntracts_shp, new_CRS)
+
+
+
+for (i in 1:length(crime_types)){
+  #filter for current crime type
+  current_type = crime_types[i]
+  Current_Crimes = Crime %>% filter(Primary.Type == current_type)
+  
+  #get the coordinates
+  locations <- with(Current_Crimes, as.data.frame(cbind(Longitude, Latitude)))
+  locations <- locations[!is.na(locations$Longitude),]
+  if (nrow(locations) > 0){
+    coordinates(locations) <- ~Longitude+Latitude
+    proj4string(locations) <- CRS("+init=epsg:4326")
+    
+    
+    #prepping the data: project points to polygons
+    proj4string(towntracts_shp) <- new_CRS
+    proj4string(locations) <- new_CRS
+    by_tract <- over(locations, towntracts_shp)
+    by_tract <- by_tract %>%
+      group_by(geoid10) %>%
+      dplyr::summarise(total=n()) %>%
+      filter(!is.na(geoid10)) %>%
+      mutate(id = as.character(geoid10))
+    
+    #making choropleth
+    total_map <- left_join(towntracts_df, by_tract)
+    total_map$total[is.na(total_map$total)] <- 0 
+    hamden_ts <- ggplot() 
+    hamden_ts <- hamden_ts +  geom_polygon(data = total_map, aes(x=long, y=lat, group=group, fill=total), color = "black", size=0.2) 
+    hamden_ts <- hamden_ts + coord_map() 
+    hamden_ts <- hamden_ts + labs(title=paste("Crimes of type", toString(current_type), sep=" "), fill="total")
+    hamden_ts <- hamden_ts +  theme_nothing(legend=TRUE) 
+    print(hamden_ts)
+  }
+  
+
+}
+
+```
+
 
 # Demographic Maps
 
@@ -560,70 +624,5 @@ zip_choropleth(zip_median_rent,
 zip_choropleth(zip_median_age, 
                county_zoom = cook_fips, 
                title="Median Age of Chicago by Zipcode") + coord_map()
-```
-
-
-# Choropleth of crime
-
-```{r}
-
-#library(scales)
-towntracts_shp <- towntracts
-towntracts_df <- fortify(towntracts, region = "geoid10")
-crime_types = levels(Crime$Primary.Type)
-
-#check the CRS of the shapefile and coordinates
-locations <- with(Crime, as.data.frame(cbind(Longitude, Latitude)))
-locations <- locations[!is.na(locations$Longitude),]
-coordinates(locations) <- ~Longitude+Latitude
-proj4string(locations) <- CRS("+init=epsg:4326")
-print(locations@proj4string)
-print(towntracts_shp@proj4string)
-
-#needs to reassign CRS for shapefile
-new_CRS <- CRS("+init=epsg:4326 +proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-towntracts_shp <- sp::spTransform(towntracts_shp, new_CRS)
-
-
-
-for (i in 1:length(crime_types)){
-  #filter for current crime type
-  current_type = crime_types[i]
-  Current_Crimes = Crime %>% filter(Primary.Type == current_type)
-  
-  #get the coordinates
-  locations <- with(Current_Crimes, as.data.frame(cbind(Longitude, Latitude)))
-  locations <- locations[!is.na(locations$Longitude),]
-  if (nrow(locations) > 0){
-    coordinates(locations) <- ~Longitude+Latitude
-    proj4string(locations) <- CRS("+init=epsg:4326")
-    
-    
-    #prepping the data: project points to polygons
-    proj4string(towntracts_shp) <- new_CRS
-    proj4string(locations) <- new_CRS
-    by_tract <- over(locations, towntracts_shp)
-    by_tract <- by_tract %>%
-      group_by(geoid10) %>%
-      dplyr::summarise(total=n()) %>%
-      filter(!is.na(geoid10)) %>%
-      mutate(id = as.character(geoid10))
-    
-    #making choropleth
-    total_map <- left_join(towntracts_df, by_tract)
-    total_map$total[is.na(total_map$total)] <- 0 
-    hamden_ts <- ggplot() 
-    hamden_ts <- hamden_ts +  geom_polygon(data = total_map, aes(x=long, y=lat, group=group, fill=total), color = "black", size=0.2) 
-    hamden_ts <- hamden_ts + coord_map() 
-    hamden_ts <- hamden_ts + labs(title=paste("Crimes of type", toString(current_type), sep=" "), fill="total")
-    hamden_ts <- hamden_ts +  theme_nothing(legend=TRUE) 
-    print(hamden_ts)
-  }
-  
-
-}
-
-
-
 ```
 
