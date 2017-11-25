@@ -26,40 +26,137 @@ Examining how crime rates have changed over time and differences in these change
 
 https://www.ml.cmu.edu/research/dap-papers/dap_flaxman.pdf
 
+#### Clean data
 
 ```{r}
+
+#Load data
+Crime = read.csv('Crime_sample_2010_to_2017.csv')
+
+Crime = Crime %>%
+  mutate(Date = as.POSIXct(strptime(Date, "%Y-%m-%d %H:%M:%S"))) %>%
+  filter(!is.na(Latitude))
+
+#Project observations to ZIP codes boundaries
+
+#load shapefile
+zip_shp <- readOGR(dsn="Boundaries - ZIP Codes", layer="geo_export_e1262361-5c82-45ee-8427-ef228e06dc4a")
+temp <- zip_shp
+zip_df <- fortify(temp, region = "zip")
+
+#needs to reassign CRS for shapefile
+new_CRS <- CRS("+init=epsg:4326 +proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+zip_shp <- sp::spTransform(zip_shp, new_CRS)
+
+#summarize crime count per year
+years <- unique(Crime$Year)
+Hotspot_Crime <- data.frame()
+
+for(i in 1:length(years)){
+  year <- years[i]
+  Current_Year <- Crime %>% filter(Year == year)
+  
+  locations <- with(Current_Year, as.data.frame(cbind(Longitude, Latitude)))
+  coordinates(locations) <- ~Longitude+Latitude
+  proj4string(locations) <- CRS("+init=epsg:4326")
+      
+  #prepping the data: project points to polygons
+  proj4string(zip_shp) <- new_CRS
+  proj4string(locations) <- new_CRS
+  by_zip <- over(locations, zip_shp)
+  
+  by_zip <- by_zip %>%
+    group_by(zip) %>%
+    dplyr::summarise(total=n()) %>%
+    filter(!is.na(zip)) %>%
+    mutate(id = as.character(zip))
+  
+  total_map <- left_join(zip_df, by_zip)
+  total_map <- total_map %>% mutate(Year = year)
+  
+  Hotspot_Crime <- rbind(Hotspot_Crime, total_map)
+}
+
+
+#Add demographic information
+library(choroplethrZip)
+data("df_zip_demographics")
+Demographics <- df_zip_demographics %>% mutate(zip = region)
+Hotspot_Crime <- inner_join(Hotspot_Crime, Demographics, by="zip") 
+Model_Data <- Hotspot_Crime %>%
+  select(-c(lat, long, order, piece, group, hole)) %>% distinct
+```
+
+```{r}
+library(tidyr)
+Year <- Model_Data %>%
+  select(Year, zip, total) %>%
+  spread( key=Year, value=total)
+rownames(Year) <- Year$zip 
+Year <- Year %>% select(-zip)
+Year[is.na(Year)] <- 0
+
+Population <- Model_Data %>%
+  select(total_population, zip, Year) %>%
+  spread(key=Year, value=total_population) 
+rownames(Population) <- Population$zip
+Population <- Population %>% select(-zip)
+Population[is.na(Population)] <- 0
+
+time <- sort(unique(Model_Data$Year))
+```
+
+####Simulation
+
+```{r}
+library(rjags)
+
+
 #specify the model
-elect_model <- "model{
+crime_model <- "model{
     #Data
-    for(i in 1:length(x)) {
-      x[i] ~ dnorm(theta[i], 1/(10/n[i]))
+    for(i in 1:58) {
+      for(j in 1:8){
+        y[i,j] ~ dbin(p[i,j], n[i,j])
+        logit(p[i,j]) = alpha + u[i] + s[i] + beta*time[j] + delta[i]*time[j]
+      }
     }
     
-    for(i in 1:length(x)){
-      theta[i] ~ dnorm(mu, tau)
-    }
     #Priors
-    mu ~ dnorm(0, 1/(0.02^2))
-    tau ~ dgamma(2, 0.05)
+    alpha ~ dunif(-1000, 1000)
+    beta ~ dnorm(0, 1/1000)
+    for(i in 1:58){
+      u[i] ~ dnorm(0, prec.u)
+      s[i] ~ dnorm(0, prec.s)
+      delta[i] ~ dnorm(0, prec.delta)
+    }
+
+    #Hyperpriors
+    prec.u ~ dgamma(0.5, 0.0005)
+    prec.s ~ dgamma(0.5, 0.0005)
+    prec.delta ~ dgamma(0.5, 0.0005)
+    
 }"
 
 #set up an algorithm to simulate the posterior by 
 #combining the model (nba_model) and data (y)
 #set the random number seed
-elect_jags <- jags.model(textConnection(elect_model), data=list(x=elect_sub$X, n=elect_sub$SampleSize),
+crime_jags <- jags.model(textConnection(crime_model), data=list(y=Year, n=Population, time=time),
                     inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
 
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-elect_sim <- coda.samples(elect_jags, variable.names=c("theta", "mu", "tau"), n.iter=10000)
+crime_sim <- coda.samples(crime_jags, variable.names=c("p", "u", "s", "delta", "alpha", "beta"), n.iter=40000)
 
 
 #store the samples in a data frame:    
-elect_samples_1 <- data.frame(step=1:10000, elect_sim[[1]])
-#head(elect_samples_1)
+crime_data <- data.frame(step=1:40000, crime_sim[[1]])
 ```
 
+```{r}
+summary(crime_sim)
+```
 
 
 
