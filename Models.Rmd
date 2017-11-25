@@ -5,16 +5,20 @@ date: "11/21/2017"
 output: html_document
 ---
 
+### Progress Made
+
+### Group Roles
 
 ### Research Question 1
 
 Predicting hotspots of specific crimes and how they changed over time.
 
-http://web.a.ebscohost.com/ehost/pdfviewer/pdfviewer?vid=2&sid=2a55062b-9e17-4e02-97d1-62d1ceee3d6a%40sessionmgr4007
+Analyzing Hotspots of Crime Using a Bayesian Spatiotemporal Modeling Approach
 
 
 **Models:**
 
+The probability of an individual being a victim of a violent crime ($p_{ij}$)
 
 ### Research Question 2
 
@@ -23,8 +27,38 @@ Examining how crime rates have changed over time and differences in these change
 https://www.ml.cmu.edu/research/dap-papers/dap_flaxman.pdf
 
 
-**Models:**
+```{r}
+#specify the model
+elect_model <- "model{
+    #Data
+    for(i in 1:length(x)) {
+      x[i] ~ dnorm(theta[i], 1/(10/n[i]))
+    }
+    
+    for(i in 1:length(x)){
+      theta[i] ~ dnorm(mu, tau)
+    }
+    #Priors
+    mu ~ dnorm(0, 1/(0.02^2))
+    tau ~ dgamma(2, 0.05)
+}"
 
+#set up an algorithm to simulate the posterior by 
+#combining the model (nba_model) and data (y)
+#set the random number seed
+elect_jags <- jags.model(textConnection(elect_model), data=list(x=elect_sub$X, n=elect_sub$SampleSize),
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+
+
+#simulate a sample from the posterior 
+#note that we specify both mu and tau variables
+elect_sim <- coda.samples(elect_jags, variable.names=c("theta", "mu", "tau"), n.iter=10000)
+
+
+#store the samples in a data frame:    
+elect_samples_1 <- data.frame(step=1:10000, elect_sim[[1]])
+#head(elect_samples_1)
+```
 
 
 
