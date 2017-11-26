@@ -1,3 +1,4 @@
+#Reads in the original dataset downloaded from 
 #Crime = read.csv('Crimes_-_2001_to_present.csv')
 
 
@@ -22,5 +23,6 @@ write.csv(Crime_sample, file='Crime_sample_2010_to_2017.csv')
 
 #Format data after loading it in RStudio everytime
 Crime_sample = Crime_sample %>%
-  mutate(Date = as.POSIXct(strptime(Date, "%Y-%m-%d %H:%M:%S")))
+  mutate(Date = as.POSIXct(strptime(Date, "%Y-%m-%d %H:%M:%S"))) %>%
+  filter(!is.na(Latitude))
 
