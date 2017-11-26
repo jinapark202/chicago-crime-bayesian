@@ -112,6 +112,8 @@ Population <- Population %>% select(-zip)
 Population[is.na(Population)] <- 0
 
 time <- sort(unique(Model_Data$Year))
+
+percent_nonwhite <- 100 - Model_Data$percent_white
 ```
 
 ---------------------------------------------------------------
@@ -164,7 +166,7 @@ crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("p", "u", "s", "delta
 
 
 #store the samples in a data frame:    
-crime_data_1 <- data.frame(step=1:40000, crime_sim[[1]])
+crime_data_1 <- data.frame(step=1:40000, crime_sim_1[[1]])
 ```
 
 
@@ -209,5 +211,107 @@ crime_sim_2 <- coda.samples(crime_jags_2, variable.names=c("p", "u", "s", "delta
 
 
 #store the samples in a data frame:    
-crime_data_2 <- data.frame(step=1:40000, crime_sim[[1]])
+crime_data_2 <- data.frame(step=1:40000, crime_sim_2[[1]])
 ```
+
+
+# Model 3 -- Use demographics information 
+
+```{r}
+#Specify the model
+crime_model_3 <- "model{
+    #Data
+    for(i in 1:58) {
+      for(j in 1:8){
+        y[i,j] ~ dbin(p[i,j], n[i,j])
+        logit(p[i,j]) = alpha + u[i] + s[i]+ delta[i]*time[j] + sigma[i]*income[i]
+      }
+    }
+    
+    #Priors
+    alpha ~ dunif(-1000, 1000)
+    beta ~ dnorm(0, 1/1000)
+    for(i in 1:58){
+      u[i] ~ dnorm(0, prec.u)
+      s[i] ~ dnorm(0, prec.s)
+      delta[i] ~ dnorm(0, prec.delta)
+      sigma[i] ~ dnorm(0, prec.sigma)
+    }
+
+    #Hyperpriors
+    prec.u ~ dgamma(0.5, 0.0005)
+    prec.s ~ dgamma(0.5, 0.0005)
+    prec.delta ~ dgamma(0.5, 0.0005)
+    prec.sigma ~ dgamma(0.5, 0.0005)
+    
+}"
+
+#set up an algorithm to simulate the posterior by 
+#combining the model (nba_model) and data (y)
+#set the random number seed
+crime_jags_3 <- jags.model(textConnection(crime_model_3), data=list(y=Year, n=Population, time=time, income=Model_Data$per_capita_income),
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+
+
+#simulate a sample from the posterior 
+#note that we specify both mu and tau variables
+crime_sim_3 <- coda.samples(crime_jags_3, variable.names=c("p", "u", "s", "delta", "alpha", "sigma"), n.iter=40000)
+
+
+#store the samples in a data frame:    
+crime_data_3 <- data.frame(step=1:40000, crime_sim_3[[1]])
+```
+
+```{r}
+ggplot(crime_data_3, aes(x=step, y=alpha)) + geom_line()
+```
+
+# Model 4 -- Use demographics information with race
+
+```{r}
+#Specify the model
+crime_model_4 <- "model{
+    #Data
+    for(i in 1:58) {
+      for(j in 1:8){
+        y[i,j] ~ dbin(p[i,j], n[i,j])
+        logit(p[i,j]) = alpha + u[i] + s[i]+ delta[i]*time[j] + sigma[i]*income[i] + e[i]*percent_nonwhite[i]
+      }
+    }
+    
+    #Priors
+    alpha ~ dunif(-1000, 1000)
+    beta ~ dnorm(0, 1/1000)
+    for(i in 1:58){
+      u[i] ~ dnorm(0, prec.u)
+      s[i] ~ dnorm(0, prec.s)
+      delta[i] ~ dnorm(0, prec.delta)
+      sigma[i] ~ dnorm(0, prec.sigma)
+      e[i] ~ dnorm(0, 0.01)
+    }
+
+    #Hyperpriors
+    prec.u ~ dgamma(0.5, 0.0005)
+    prec.s ~ dgamma(0.5, 0.0005)
+    prec.delta ~ dgamma(0.5, 0.0005)
+    prec.sigma ~ dgamma(0.5, 0.0005)
+    
+}"
+
+#set up an algorithm to simulate the posterior by 
+#combining the model (nba_model) and data (y)
+#set the random number seed
+crime_jags_4 <- jags.model(textConnection(crime_model_4), data=list(y=Year, n=Population, time=time, income=Model_Data$per_capita_income, percent_nonwhite=percent_nonwhite),
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+
+
+#simulate a sample from the posterior 
+#note that we specify both mu and tau variables
+crime_sim_4 <- coda.samples(crime_jags_4, variable.names=c("p", "u", "s", "delta", "alpha", "sigma", "e"), n.iter=40000)
+
+
+#store the samples in a data frame:    
+crime_data_4 <- data.frame(step=1:40000, crime_sim_4[[1]])
+```
+
+
