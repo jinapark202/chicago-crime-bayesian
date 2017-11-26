@@ -7,7 +7,13 @@ output: html_document
 
 ### Progress Made
 
+- Examined other research papers with similar topics to derive models for our research questions.
+
+- Produced 2 models for each of our research questions.
+
 ### Group Roles
+
+-----------------------------------------------------------
 
 ### Research Question 1
 
@@ -27,18 +33,18 @@ Examining how crime rates have changed over time and differences in these change
 https://www.ml.cmu.edu/research/dap-papers/dap_flaxman.pdf
 
 #### Clean data
-
 ```{r}
-
 #Load data
 Crime = read.csv('Crime_sample_2010_to_2017.csv')
 
 Crime = Crime %>%
   mutate(Date = as.POSIXct(strptime(Date, "%Y-%m-%d %H:%M:%S"))) %>%
   filter(!is.na(Latitude))
+```
 
-#Project observations to ZIP codes boundaries
 
+#### Project observations to ZIP codes boundaries
+```{r}
 #load shapefile
 zip_shp <- readOGR(dsn="Boundaries - ZIP Codes", layer="geo_export_e1262361-5c82-45ee-8427-ef228e06dc4a")
 temp <- zip_shp
@@ -76,9 +82,11 @@ for(i in 1:length(years)){
   
   Hotspot_Crime <- rbind(Hotspot_Crime, total_map)
 }
+```
 
 
-#Add demographic information
+#### Add demographic information to Model Data
+```{r}
 library(choroplethrZip)
 data("df_zip_demographics")
 Demographics <- df_zip_demographics %>% mutate(zip = region)
@@ -106,14 +114,19 @@ Population[is.na(Population)] <- 0
 time <- sort(unique(Model_Data$Year))
 ```
 
-####Simulation
+---------------------------------------------------------------
 
+#### Simulation
 ```{r}
 library(rjags)
+```
 
+# Research Question 1
 
-#specify the model
-crime_model <- "model{
+## Model 1
+```{r}
+#Specify the model
+crime_model_1 <- "model{
     #Data
     for(i in 1:58) {
       for(j in 1:8){
@@ -141,22 +154,60 @@ crime_model <- "model{
 #set up an algorithm to simulate the posterior by 
 #combining the model (nba_model) and data (y)
 #set the random number seed
-crime_jags <- jags.model(textConnection(crime_model), data=list(y=Year, n=Population, time=time),
+crime_jags_1 <- jags.model(textConnection(crime_model_1), data=list(y=Year, n=Population, time=time),
                     inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
 
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim <- coda.samples(crime_jags, variable.names=c("p", "u", "s", "delta", "alpha", "beta"), n.iter=40000)
+crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("p", "u", "s", "delta", "alpha", "beta"), n.iter=40000)
 
 
 #store the samples in a data frame:    
-crime_data <- data.frame(step=1:40000, crime_sim[[1]])
+crime_data_1 <- data.frame(step=1:40000, crime_sim[[1]])
 ```
 
+
+## Model 2 - Overall time trend ($\beta$) is removed from the model
 ```{r}
-summary(crime_sim)
+#Specify the model
+crime_model_2 <- "model{
+    #Data
+    for(i in 1:58) {
+      for(j in 1:8){
+        y[i,j] ~ dbin(p[i,j], n[i,j])
+        logit(p[i,j]) = alpha + u[i] + s[i]+ delta[i]*time[j]
+      }
+    }
+    
+    #Priors
+    alpha ~ dunif(-1000, 1000)
+    beta ~ dnorm(0, 1/1000)
+    for(i in 1:58){
+      u[i] ~ dnorm(0, prec.u)
+      s[i] ~ dnorm(0, prec.s)
+      delta[i] ~ dnorm(0, prec.delta)
+    }
+
+    #Hyperpriors
+    prec.u ~ dgamma(0.5, 0.0005)
+    prec.s ~ dgamma(0.5, 0.0005)
+    prec.delta ~ dgamma(0.5, 0.0005)
+    
+}"
+
+#set up an algorithm to simulate the posterior by 
+#combining the model (nba_model) and data (y)
+#set the random number seed
+crime_jags_2 <- jags.model(textConnection(crime_model_2), data=list(y=Year, n=Population, time=time),
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+
+
+#simulate a sample from the posterior 
+#note that we specify both mu and tau variables
+crime_sim_2 <- coda.samples(crime_jags_2, variable.names=c("p", "u", "s", "delta", "alpha"), n.iter=40000)
+
+
+#store the samples in a data frame:    
+crime_data_2 <- data.frame(step=1:40000, crime_sim[[1]])
 ```
-
-
-
