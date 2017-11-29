@@ -314,4 +314,128 @@ crime_sim_4 <- coda.samples(crime_jags_4, variable.names=c("p", "u", "s", "delta
 crime_data_4 <- data.frame(step=1:40000, crime_sim_4[[1]])
 ```
 
+#Police model
 
+## Model 1
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+#number of zipcodes: 62
+#number races 7
+Police <- read.csv("Police_stops_2016_2017_sample.csv")
+Arrests <- Police %>% 
+  group_by(ZIP_CD, RACE_CODE_CD) %>%
+  dplyr::summarise(total.arrest = sum(ENFORCEMENT_ACTION_TAKEN_I)) %>%
+  spread(key=ZIP_CD, value=total.arrest) %>%
+  as.data.frame() %>%
+  remove_rownames %>%
+  column_to_rownames(var='RACE_CODE_CD')
+Arrests[is.na(Arrests)] <- 0
+
+Stops <- Police %>%
+  group_by(ZIP_CD, RACE_CODE_CD) %>%
+  dplyr::summarise(total.stop = n()) %>%
+  spread(key=ZIP_CD, value=total.stop) %>%
+  as.data.frame() %>%
+  remove_rownames %>%
+  column_to_rownames(var='RACE_CODE_CD')
+Stops[is.na(Stops)] <- 0
+```
+
+```{r}
+#Specify the model
+police_model_1 <- "model{
+    #Data
+    for(i in 1:7) {
+      for(j in 1:62){
+        y[i,j] ~ dpois((13/12)*n[i,j]*theta[i,j])
+        logit(theta[i,j]) = mu + alpha[i] + beta[j] + epsilon[i,j]
+      }
+    }
+    
+    #Priors
+    mu ~ dunif(-1000, 1000)
+
+    for (j in 1: 62){
+      beta[j] ~ dnorm(0, 1/sigma_beta^2)
+    }
+
+    for (i in 1:7){
+      alpha[i] ~ dunif(-1000, 1000)
+    }
+
+    for (i in 1:7){
+      for (j in 1:62){
+        epsilon[i,j] ~ dnorm(0, 1/sigma_epsilon^2)
+      }
+    }
+
+    #Hyperpriors
+    sigma_beta ~ dunif(0, 1000)
+    sigma_epsilon ~ dunif(0, 1000)
+    
+}"
+
+#set up an algorithm to simulate the posterior by 
+#combining the model and data (y)
+#set the random number seed
+police_jags_1 <- jags.model(textConnection(police_model_1), data=list(y=Stops, n=Arrests),
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+
+
+#simulate a sample from the posterior 
+#note that we specify both mu and tau variables
+police_sim_1 <- coda.samples(police_jags_1, variable.names=c("mu", "alpha", "sigma_beta", "sigma_epsilon", "beta", "epsilon"), n.iter=10000)
+
+
+#store the samples in a data frame:    
+police_data_1 <- data.frame(step=1:10000, police_sim_1[[1]])
+```
+
+
+```{r}
+#Specify the model
+police_model_1 <- "model{
+    #Data
+    for(i in 1:7) {
+      for(j in 1:62){
+        y[i,j] ~ dpois((13/12)*n[i,j]*exp(mu + alpha[i] + beta[j] + epsilon[i,j]))
+      }
+    }
+    
+    #Priors
+    for (j in 1: 62){
+      beta[j] ~ dnorm(0, 1/sigma_beta^2)
+    }
+
+    for (i in 1:7){
+      for (j in 1:62){
+        epsilon[i,j] ~ dnorm(0, 1/sigma_epsilon^2)
+      }
+    }
+
+    #Hyperpriors
+    mu ~ dunif(0, 1000)
+    alpha ~ dunif(0, 1000)
+    sigma_beta ~ dunif(0, 1000)
+    sigma_epsilon ~ dunif(0, 1000)
+    
+}"
+
+#set up an algorithm to simulate the posterior by 
+#combining the model and data (y)
+#set the random number seed
+police_jags_1 <- jags.model(textConnection(police_model_1), data=list(y=Stops, n=Arrests),
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+
+
+#simulate a sample from the posterior 
+#note that we specify both mu and tau variables
+police_sim_1 <- coda.samples(police_jags_1, variable.names=c("mu", "alpha", "sigma_beta", "sigma_epsilon", "beta", "epsilon"), n.iter=10000)
+
+
+#store the samples in a data frame:    
+police_data_1 <- data.frame(step=1:10000, police_sim_1[[1]])
+```

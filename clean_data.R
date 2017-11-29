@@ -26,3 +26,16 @@ Crime_sample = Crime_sample %>%
   mutate(Date = as.POSIXct(strptime(Date, "%Y-%m-%d %H:%M:%S"))) %>%
   filter(!is.na(Latitude))
 
+
+#Clean police stops data
+Police <- read.csv('Police_stops_1-2016_2-2017_full.csv')
+
+#keep only a few variables
+kept_columns <- c('CONTACT_CARD_ID', 'CONTACT_DATE', 'CONTACT_HOUR', 'SUBMITTING_BEAT_CD','SEX_CODE_CD','RACE_CODE_CD','ZIP_CD','BEAT','ENFORCEMENT_ACTION_TAKEN_I','COCAINE_I','HEROIN_I','CANNABIS_AMOUNT', 'OTHER_CON_SUB', 'SEARCH_COCAINE_I', 'SEARCH_HEROIN_I', 'SEARCH_CANNABIS_I', 'SEARCH_OTHER_CON_SUB_I', 'PARA_I', 'S_PARA_I')
+drug_i <- c('COCAINE_I','HEROIN_I','CANNABIS_AMOUNT', 'OTHER_CON_SUB', 'SEARCH_COCAINE_I', 'SEARCH_HEROIN_I', 'SEARCH_CANNABIS_I', 'SEARCH_OTHER_CON_SUB_I', 'PARA_I', 'S_PARA_I', 'ENFORCEMENT_ACTION_TAKEN_I')
+Police <- Police %>% select(one_of(kept_columns)) %>%
+  filter(!grepl("REDACTED", RACE_CODE_CD)) %>%
+  na.omit() %>%
+  mutate_at(drug_i, function(x){as.numeric(x == "Y")}) %>%
+  mutate(DRUG_I = as.numeric(rowSums(.[10:19]) > 0))
+write.csv(Police, file="Police_stops_2016_2017.csv")

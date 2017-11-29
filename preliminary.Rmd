@@ -626,3 +626,31 @@ zip_choropleth(zip_median_age,
                title="Median Age of Chicago by Zipcode") + coord_map()
 ```
 
+#Police stops 2016-2017 visualization
+
+```{r}
+Police.s <- read.csv("Police_stops_2016_2017_sample.csv")
+drug.count <- Police.s %>%
+  group_by(ZIP_CD) %>%
+  dplyr::summarise(drug_count = sum(DRUG_I))
+stop.count <- Police.s %>%
+  group_by(ZIP_CD) %>%
+  dplyr::summarise(stop_count = n())
+
+Police.c <- Police.s %>%
+  inner_join(drug.count, by="ZIP_CD") %>%
+  inner_join(stop.count, by="ZIP_CD") %>%
+  mutate(id = ZIP_CD)
+
+zip <- readOGR(dsn="Boundaries - ZIP Codes", layer="geo_export_e1262361-5c82-45ee-8427-ef228e06dc4a")
+zip_df <- fortify(zip, region = "zip")
+zip_df <- zip_df %>% mutate(id = as.numeric(id))
+total_map <- inner_join(Police.c, zip_df, by="id")
+ps <- ggplot() 
+ps <- ps +  geom_polygon(data = total_map, aes(x=long, y=lat, group=group, fill=total), color = "black", size=0.2) 
+ps <- ps + coord_map() 
+ps <- ps + labs(title=paste("Crimes of type", toString(current_type), sep=" "), fill="total")
+ps <- ps +  theme_nothing(legend=TRUE) 
+print(ps)
+```
+
