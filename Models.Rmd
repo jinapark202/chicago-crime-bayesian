@@ -172,13 +172,14 @@ We are modeling the count of crime incidents by year and zipcodes using a binomi
 
 We modeled the probability of being a victim using a logit function of the grand crime rate of Chicago and the inclusion of several random effects. It is also a function of time and its interaction with location.
 
-```{r, cache=TRUE}
+```{r, cache=TRUE} 
 #Specify the model
 crime_model_1 <- "model{
     #Data
     for(i in 1:58) {
       for(j in 1:8){
         y[i,j] ~ dbin(p[i,j], n[i,j])
+
         logit(p[i,j]) = alpha + u[i] + s[i] + beta*time[j] + delta[i]*time[j]
       }
     }
