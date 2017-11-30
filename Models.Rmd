@@ -325,7 +325,16 @@ library(tidyverse)
 #number of zipcodes: 62
 #number races 7
 Police <- read.csv("Police_stops_2016_2017_sample.csv")
-Arrests <- Police %>% 
+
+Police.r <- Police %>%
+  filter(!(RACE_CODE_CD=="I" | RACE_CODE_CD=="P" | RACE_CODE_CD=="WHI") ) %>%
+  mutate(RACE_CODE_CD = as.character(RACE_CODE_CD)) %>%
+  mutate(RACE_CODE_CD=replace(RACE_CODE_CD, RACE_CODE_CD=="WWH", "HISPANIC"))
+
+valid_zips <- unique(rownames(Population.race))
+
+Arrests <- Police.r %>% 
+  filter(ZIP_CD %in% valid_zips) %>%
   group_by(ZIP_CD, RACE_CODE_CD) %>%
   dplyr::summarise(total.arrest = sum(ENFORCEMENT_ACTION_TAKEN_I)) %>%
   spread(key=ZIP_CD, value=total.arrest) %>%
@@ -334,7 +343,8 @@ Arrests <- Police %>%
   column_to_rownames(var='RACE_CODE_CD')
 Arrests[is.na(Arrests)] <- 0
 
-Stops <- Police %>%
+Stops <- Police.r %>%
+  filter(ZIP_CD %in% valid_zips) %>%
   group_by(ZIP_CD, RACE_CODE_CD) %>%
   dplyr::summarise(total.stop = n()) %>%
   spread(key=ZIP_CD, value=total.stop) %>%
@@ -342,39 +352,47 @@ Stops <- Police %>%
   remove_rownames %>%
   column_to_rownames(var='RACE_CODE_CD')
 Stops[is.na(Stops)] <- 0
+
+vars = c("percent_white","percent_black","percent_asian","percent_hispanic")
+Population.race <- Model_Data %>%
+  mutate_at(vars, function(x){trunc(Model_Data$total_population*x/100)}) %>%
+  select(zip, percent_asian,percent_black,percent_hispanic, percent_white) %>%
+  unique() %>%
+  remove_rownames %>%
+  column_to_rownames(var='zip') 
 ```
 
-```{r}
+```
 #Specify the model
 police_model_1 <- "model{
     #Data
-    for(i in 1:7) {
-      for(j in 1:62){
+    for(i in 1:4) {
+      for(j in 1:58){
         y[i,j] ~ dpois((13/12)*n[i,j]*theta[i,j])
-        logit(theta[i,j]) = mu + alpha[i] + beta[j] + epsilon[i,j]
+        log(theta[i,j]) = mu + alpha[i] + beta[j] + epsilon[i,j]
       }
     }
     
     #Priors
-    mu ~ dunif(-1000, 1000)
+    mu ~ dunif(-500, 500)
 
-    for (j in 1: 62){
+    for (j in 1: 58){
       beta[j] ~ dnorm(0, 1/sigma_beta^2)
     }
 
-    for (i in 1:7){
-      alpha[i] ~ dunif(-1000, 1000)
+    for (i in 1:4){
+      alpha[i] ~ dunif(-50, 50)
     }
 
-    for (i in 1:7){
+    for (i in 1:4){
       for (j in 1:62){
         epsilon[i,j] ~ dnorm(0, 1/sigma_epsilon^2)
       }
     }
 
     #Hyperpriors
-    sigma_beta ~ dunif(0, 1000)
-    sigma_epsilon ~ dunif(0, 1000)
+    sigma_beta ~ dunif(0.00001, 0.01)
+    sigma_epsilon ~ dunif(0.00001, 0.01)
     
 }"
 
@@ -387,55 +405,49 @@ police_jags_1 <- jags.model(textConnection(police_model_1), data=list(y=Stops, n
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-police_sim_1 <- coda.samples(police_jags_1, variable.names=c("mu", "alpha", "sigma_beta", "sigma_epsilon", "beta", "epsilon"), n.iter=10000)
+police_sim_1 <- coda.samples(police_jags_1, variable.names=c("mu", "alpha", "sigma_beta", "sigma_epsilon", "beta", "epsilon", "theta"), n.iter=10000)
 
 
 #store the samples in a data frame:    
 police_data_1 <- data.frame(step=1:10000, police_sim_1[[1]])
 ```
 
+#Model 2
 
-```{r}
+```
 #Specify the model
-police_model_1 <- "model{
+police_model_2 <- "model{
     #Data
-    for(i in 1:7) {
-      for(j in 1:62){
-        y[i,j] ~ dpois((13/12)*n[i,j]*exp(mu + alpha[i] + beta[j] + epsilon[i,j]))
+    for(i in 1:4) {
+      for(j in 1:58){
+        y[i,j] ~ dpois((13/12)*theta[i,j]*exp(alpha))
+        n[i,j] ~ dpois(theta[i,j])
+        log(theta[i,j]) = log(N[j,i]) + beta
       }
     }
     
     #Priors
-    for (j in 1: 62){
-      beta[j] ~ dnorm(0, 1/sigma_beta^2)
-    }
-
-    for (i in 1:7){
-      for (j in 1:62){
-        epsilon[i,j] ~ dnorm(0, 1/sigma_epsilon^2)
-      }
-    }
-
-    #Hyperpriors
-    mu ~ dunif(0, 1000)
-    alpha ~ dunif(0, 1000)
-    sigma_beta ~ dunif(0, 1000)
-    sigma_epsilon ~ dunif(0, 1000)
+    alpha ~ dunif(-100, 100)
+    beta ~ dnorm(0, 0.005)
     
 }"
 
 #set up an algorithm to simulate the posterior by 
 #combining the model and data (y)
 #set the random number seed
-police_jags_1 <- jags.model(textConnection(police_model_1), data=list(y=Stops, n=Arrests),
+police_jags_2 <- jags.model(textConnection(police_model_2), data=list(y=Stops, n=Arrests, N=Population.race),
                     inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
 
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-police_sim_1 <- coda.samples(police_jags_1, variable.names=c("mu", "alpha", "sigma_beta", "sigma_epsilon", "beta", "epsilon"), n.iter=10000)
+police_sim_2 <- coda.samples(police_jags_2, variable.names=c("alpha",  "beta",  "theta"), n.iter=10000)
 
 
 #store the samples in a data frame:    
-police_data_1 <- data.frame(step=1:10000, police_sim_1[[1]])
+police_data_2 <- data.frame(step=1:10000, police_sim_2[[1]])
 ```
+
+
+
+
