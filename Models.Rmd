@@ -17,7 +17,7 @@ output: html_document
 
 - We came up with the two research questions together. 
 
-- We worked on formulating the 4 models together by reading past research and altering it with our questions.
+- We worked on formulating the models together by reading past research and altering it with our questions.
 
 - Phuc cleaned the traffic stops data.
 
@@ -172,7 +172,7 @@ We are modeling the count of crime incidents by year and zipcodes using a binomi
 
 We modeled the probability of being a victim using a logit function of the grand crime rate of Chicago and the inclusion of several random effects. It is also a function of time and its interaction with location.
 
-```{r}
+```{r, cache=TRUE}
 #Specify the model
 crime_model_1 <- "model{
     #Data
@@ -259,7 +259,7 @@ ggplot(crime_data_1, aes(x=beta)) + geom_histogram(aes(y=..density..), colour="w
 ### Specify the Model
 This model resembles Model 1 but we are no longer taking into account the time trend.
 
-```{r}
+```{r, cache=TRUE}
 #Specify the model
 crime_model_2 <- "model{
     #Data
@@ -334,7 +334,7 @@ crime_data_2 <- data.frame(step=1:40000, crime_sim_2[[1]])
 ### Specify the Model
 This model resembles Model 2 but now our prediction of the crime rate accounts for the different income levels in various Chicago zipcodes.
 
-```{r}
+```{r, cache=TRUE}
 #Specify the model
 crime_model_3 <- "model{
     #Data
@@ -420,7 +420,7 @@ running_mean_plot(crime_data_3$alpha)
 ### Specify the Model
 This model resembles Model 3 but now our prediction of the crime rate accounts for both income levels and the percentage of nonwhites in the area.
 
-```{r}
+```{r, cache=TRUE}
 #Specify the model
 crime_model_4 <- "model{
     #Data
@@ -741,13 +741,15 @@ There is a 95% chance that the random effect of race on the number of arrests gi
 
 - theta[i, j]: the true crime rate for each ethnic group i in location j
 
-- alpha: represents some relationship between crime rate and the number of arrests.
+- beta0: base rate of arrests
 
-- N[j, i]: the population of ethnic group i and area j
+- beta2[i]: pump in base rate of arrests for race i
 
-- beta: error term
+- beta3[i]: pump in base rate of arrests for zipcode j
 
+### Specify the Model
 
+This model models the number of arrests based on number of stops with a Poisson distribution. The model accounts for a different rate for each ethnic group and different locations.  
 
 ```{r, cache=TRUE}
 police_model_4 <- "model{
@@ -783,6 +785,7 @@ police_sim_4 <- coda.samples(police_jags_4, variable.names=c( "beta0", "beta1", 
 police_data_4 <- data.frame(step=1:20000, police_sim_4[[1]])
 ```
 
+###Parameters interpretation
 
 ```{r}
 running_mean_plot(police_data_4$beta0)
@@ -790,3 +793,13 @@ running_mean_plot(police_data_4$beta1)
 running_mean_plot(police_data_4$beta2.2)
 ```
 
+The running mean for base rate beta0 doesn't show convergence, though that of beta1 does.
+
+```{r}
+quantile(police_data_4$beta2.1, c(0.025, 0.975)) + quantile(police_data_4$beta0, c(0.025, 0.975))
+quantile(police_data_4$beta2.2, c(0.025, 0.975)) + quantile(police_data_4$beta0, c(0.025, 0.975))
+quantile(police_data_4$beta2.3, c(0.025, 0.975))+ quantile(police_data_4$beta0, c(0.025, 0.975))
+quantile(police_data_4$beta2.4, c(0.025, 0.975))+ quantile(police_data_4$beta0, c(0.025, 0.975))
+```
+
+There is a 95% chance that the base arrest rate for Asian, Black, Hispanic, and White are in the above interval respectively. There seems to be evidence that Black and Hispanic has a higher base arrest rate than Asian and White do, accounting for the number of stops of each ethnic groups. 
