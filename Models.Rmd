@@ -7,30 +7,53 @@ output: html_document
 
 ### Progress Made
 
-- Examined other research papers with similar topics to derive models for our research questions.
+- Examined other research papers with similar topics to derive models for our project.
 
 - Produced 2 models for each of our research questions.
 
+- Cleaned the model data to use with Rjags.
+
 ### Group Roles
+
+- We came up with the two research questions together. 
+
+- We worked on formulating the 4 models together by reading past research and altering it with our questions.
+
+- Phuc cleaned the traffic stops data.
+
+- Jina wrote this report with the help of Phuc.
 
 -----------------------------------------------------------
 
 ### Research Question 1
 
-Predicting hotspots of specific crimes and how they changed over time.
+- Predicting hotspots of specific crimes and how they changed over time and space.
 
-Analyzing Hotspots of Crime Using a Bayesian Spatiotemporal Modeling Approach
+- Are certain types of crimes more prevalent in certain areas than others? 
 
+- How have these hotspots changed over time? If they have changed over time, how has it changed relative to changes in income, demographics, age, etc?
 
-**Models:**
-
-The probability of an individual being a victim of a violent crime ($p_{ij}$)
 
 ### Research Question 2
 
-Examining how crime rates have changed over time and differences in these changes across neighborhoods.
+- Examining police traffic stops and subsequent arrests to determine whether certain ethnic minorities are stopped/arrested more than others.
 
-https://www.ml.cmu.edu/research/dap-papers/dap_flaxman.pdf
+- Are certain ethnic groups more likely to be arrested/stopped in certain areas than others? For instance, are blacks/hispanics more likely to be stopped/arrested in predominantly white neighborhoods?
+
+- We would like to examine the relationship between traffic stops/arrests and the actual crime rates of different ethnic groups. For instance, are blacks/hispanics getting stopped/arrested at a disproportionately greater rate than they are committing crimes? 
+
+
+#### Load Libraries
+```{r}
+library(tidyr)
+library(rjags)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(MacBayes)
+library(choroplethrZip)
+library(rgdal)
+```
 
 #### Clean data
 ```{r}
@@ -84,10 +107,8 @@ for(i in 1:length(years)){
 }
 ```
 
-
 #### Add demographic information to Model Data
 ```{r}
-library(choroplethrZip)
 data("df_zip_demographics")
 Demographics <- df_zip_demographics %>% mutate(zip = region)
 Hotspot_Crime <- inner_join(Hotspot_Crime, Demographics, by="zip") 
@@ -95,8 +116,8 @@ Model_Data <- Hotspot_Crime %>%
   select(-c(lat, long, order, piece, group, hole)) %>% distinct
 ```
 
+#### Get populations by zipcode and year
 ```{r}
-library(tidyr)
 Year <- Model_Data %>%
   select(Year, zip, total) %>%
   spread( key=Year, value=total)
@@ -119,13 +140,38 @@ percent_nonwhite <- 100 - Model_Data$percent_white
 ---------------------------------------------------------------
 
 #### Simulation
-```{r}
-library(rjags)
-```
 
 # Research Question 1
-
 ## Model 1
+
+### Notation
+- i: zipcodes in Chicago (58 total in our data)
+
+- j: years (from 2010 to 2017)
+
+- y[i, j]: observed count of violent crimes in Chicago by year and zipcode
+
+- p[i, j]: probability of being a victim in location i and time j
+
+- n[i, j]: the population in zipcode i in time j.
+
+- alpha: the mean crime rate
+
+- u[i]: the unstructured spatial random effect for each zipcode in Chicago.
+
+- s[i]: the structured spatial random effect for each zipcode in Chicago.
+
+- beta: time trend
+
+- time[j]: the time in years
+
+- delta[i]: the spatial temporal interaction term
+
+### Specify the Model
+We are modeling the count of crime incidents by year and zipcodes using a binomial distribution, in which the parameters are the probability of being a victim and the total population in location i and year j.
+
+We modeled the probability of being a victim using a logit function of the grand crime rate of Chicago and the inclusion of several random effects. It is also a function of time and its interaction with location.
+
 ```{r}
 #Specify the model
 crime_model_1 <- "model{
@@ -169,8 +215,50 @@ crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("p", "u", "s", "delta
 crime_data_1 <- data.frame(step=1:40000, crime_sim_1[[1]])
 ```
 
+### Parameter Interpretation
+
+There is a 73.4% probability that the crime rate in Chicago is positive. The 95% confidence interval of alpha is (-1.28, 1.517).
+
+```{r}
+ggplot(crime_data_1, aes(x=alpha)) + geom_histogram(aes(y=..density..), colour="white")
+sum(crime_data_1$alpha > 0)/40000
+quantile(crime_data_1$alpha, c(0.025, 0.975))
+```
+
+It appears that beta, the time trend, is slightly negative. This suggests that the amount of crime in Chicago might be decreasing over time.
+
+```{r}
+ggplot(crime_data_1, aes(x=beta)) + geom_histogram(aes(y=..density..), colour="white")
+```
+
+-----------------------------------------------------------------
 
 ## Model 2 - Overall time trend ($\beta$) is removed from the model
+
+### Notation
+- i: zipcodes in Chicago (58 total in our data)
+
+- j: years (from 2010 to 2017)
+
+- y[i, j]: observed count of violent crimes in Chicago by year and zipcode
+
+- p[i, j]: probability of being a victim in location i and time j
+
+- n[i, j]: the population in zipcode i in time j.
+
+- alpha: the mean crime rate
+
+- u[i]: the unstructured spatial random effect for each zipcode in Chicago.
+
+- s[i]: the structured spatial random effect for each zipcode in Chicago.
+
+- time[j]: the time in years
+
+- delta[i]: the spatial temporal interaction term
+
+### Specify the Model
+This model resembles Model 1 but we are no longer taking into account the time trend.
+
 ```{r}
 #Specify the model
 crime_model_2 <- "model{
@@ -214,8 +302,37 @@ crime_sim_2 <- coda.samples(crime_jags_2, variable.names=c("p", "u", "s", "delta
 crime_data_2 <- data.frame(step=1:40000, crime_sim_2[[1]])
 ```
 
+------------------------------------------------------------
 
 # Model 3 -- Use demographics information 
+
+### Notation
+- i: zipcodes in Chicago (58 total in our data)
+
+- j: years (from 2010 to 2017)
+
+- y[i, j]: observed count of violent crimes in Chicago by year and zipcode
+
+- p[i, j]: probability of being a victim in location i and time j
+
+- n[i, j]: the population in zipcode i in time j.
+
+- alpha: the mean crime rate
+
+- u[i]: the unstructured spatial random effect for each zipcode in Chicago.
+
+- s[i]: the structured spatial random effect for each zipcode in Chicago.
+
+- time[j]: the time in years
+
+- delta[i]: the spatial temporal interaction term
+
+- sigma[i]: the income trend
+
+- income[i]: income for each zipcode in Chicago
+
+### Specify the Model
+This model resembles Model 2 but now our prediction of the crime rate accounts for the different income levels in various Chicago zipcodes.
 
 ```{r}
 #Specify the model
@@ -262,11 +379,44 @@ crime_sim_3 <- coda.samples(crime_jags_3, variable.names=c("p", "u", "s", "delta
 crime_data_3 <- data.frame(step=1:40000, crime_sim_3[[1]])
 ```
 
+### Running mean plot of alpha
 ```{r}
-ggplot(crime_data_3, aes(x=step, y=alpha)) + geom_line()
+running_mean_plot(crime_data_3$alpha)
 ```
 
 # Model 4 -- Use demographics information with race
+
+### Notation
+- i: zipcodes in Chicago (58 total in our data)
+
+- j: years (from 2010 to 2017)
+
+- y[i, j]: observed count of violent crimes in Chicago by year and zipcode
+
+- p[i, j]: probability of being a victim in location i and time j
+
+- n[i, j]: the population in zipcode i in time j.
+
+- alpha: the mean crime rate
+
+- u[i]: the unstructured spatial random effect for each zipcode in Chicago.
+
+- s[i]: the structured spatial random effect for each zipcode in Chicago.
+
+- time[j]: the time in years
+
+- delta[i]: the spatial temporal interaction term
+
+- sigma[i]: the income trend
+
+- income[i]: income for each zipcode in Chicago
+
+- e[i]: the weight in the relationship between crime rate and percentage of nonewhite people in Chicago
+
+- percent_nonwhite[i]: the percentage of nonwhite people in zipcode i.
+
+### Specify the Model
+This model resembles Model 3 but now our prediction of the crime rate accounts for both income levels and the percentage of nonwhites in the area.
 
 ```{r}
 #Specify the model
@@ -314,14 +464,12 @@ crime_sim_4 <- coda.samples(crime_jags_4, variable.names=c("p", "u", "s", "delta
 crime_data_4 <- data.frame(step=1:40000, crime_sim_4[[1]])
 ```
 
-#Police model
+------------------------------------------------------------------------
 
-## Model 1
+# Police model
 
+### Cleaning the data
 ```{r}
-library(dplyr)
-library(tidyr)
-library(tidyverse)
 #number of zipcodes: 62
 #number races 7
 Police <- read.csv("Police_stops_2016_2017_sample.csv")
@@ -330,6 +478,14 @@ Police.r <- Police %>%
   filter(!(RACE_CODE_CD=="I" | RACE_CODE_CD=="P" | RACE_CODE_CD=="WHI") ) %>%
   mutate(RACE_CODE_CD = as.character(RACE_CODE_CD)) %>%
   mutate(RACE_CODE_CD=replace(RACE_CODE_CD, RACE_CODE_CD=="WWH", "HISPANIC"))
+
+vars = c("percent_white","percent_black","percent_asian","percent_hispanic")
+Population.race <- Model_Data %>%
+  mutate_at(vars, function(x){trunc(Model_Data$total_population*x/100)}) %>%
+  select(zip, percent_asian,percent_black,percent_hispanic, percent_white) %>%
+  unique() %>%
+  remove_rownames %>%
+  column_to_rownames(var='zip') 
 
 valid_zips <- unique(rownames(Population.race))
 
@@ -352,15 +508,34 @@ Stops <- Police.r %>%
   remove_rownames %>%
   column_to_rownames(var='RACE_CODE_CD')
 Stops[is.na(Stops)] <- 0
-
-vars = c("percent_white","percent_black","percent_asian","percent_hispanic")
-Population.race <- Model_Data %>%
-  mutate_at(vars, function(x){trunc(Model_Data$total_population*x/100)}) %>%
-  select(zip, percent_asian,percent_black,percent_hispanic, percent_white) %>%
-  unique() %>%
-  remove_rownames %>%
-  column_to_rownames(var='zip') 
 ```
+
+-------------------------------------------------------------------------
+
+## Research Question - Model 1
+
+### Notation
+- Data is only from January 2016 - February 2017 (13/12)
+
+- i: ethnic group
+
+- j: zipcode locations in Chicago
+
+- y[i, j]: observed number of arrests of ethnic group i in area j
+
+- n[i, j]: the number of traffic stops in area j for ethnic group i
+
+- mu: grand mean of arrests
+
+- alpha[i]: the random effect for each ethnic group i
+
+- beta[j]: the random effect for each zipcode location j
+
+- epsilon[i, j]: the random error for each ethnic group i and location j
+
+### Specify the Model
+
+We are modeling the arrest rate by ethnic group and location using a poisson distribution, in which the number of traffic stops acts as a baseline for the number of arrests. 
 
 ```
 #Specify the model
@@ -368,8 +543,7 @@ police_model_1 <- "model{
     #Data
     for(i in 1:4) {
       for(j in 1:58){
-        y[i,j] ~ dpois((13/12)*n[i,j]*theta[i,j])
-        log(theta[i,j]) = mu + alpha[i] + beta[j] + epsilon[i,j]
+        y[i,j] ~ dpois((13/12)*n[i,j]* exp(mu + alpha[i] + beta[j] + epsilon[i,j])
       }
     }
     
@@ -412,7 +586,32 @@ police_sim_1 <- coda.samples(police_jags_1, variable.names=c("mu", "alpha", "sig
 police_data_1 <- data.frame(step=1:10000, police_sim_1[[1]])
 ```
 
-#Model 2
+------------------------------------------------------------
+
+## Research Question 2: Model 2
+
+### Notation
+- Data is only from January 2016 - February 2017 (13/12)
+
+- i: ethnic group
+
+- j: zipcode locations in Chicago
+
+- y[i, j]: observed number of arrests of ethnic group i in area j
+
+- n[i, j]: the number of traffic stops in area j for ethnic group i
+
+- theta[i, j]: the true crime rate for each ethnic group i in location j
+
+- alpha: represents some relationship between crime rate and the number of arrests.
+
+- N[j, i]: the population of ethnic group i and area j
+
+- beta: error term
+
+### Specify the Model
+
+This model resembles Model 1 but takes into account the population of ethnic groups in each zipcode.
 
 ```
 #Specify the model
@@ -422,14 +621,19 @@ police_model_2 <- "model{
       for(j in 1:58){
         y[i,j] ~ dpois((13/12)*theta[i,j]*exp(alpha))
         n[i,j] ~ dpois(theta[i,j])
-        log(theta[i,j]) = log(N[j,i]) + beta
+        log(theta[i,j]) = log(N[j,i]) + beta[i, j]
       }
     }
     
     #Priors
     alpha ~ dunif(-100, 100)
     beta ~ dnorm(0, 0.005)
-    
+
+    for (i in 1:4) {
+       for (j in 1:58){
+           epsilon[i,j] ~ dnorm(0, 1/sigma_epsilon^2)
+         }
+    }
 }"
 
 #set up an algorithm to simulate the posterior by 
@@ -447,7 +651,3 @@ police_sim_2 <- coda.samples(police_jags_2, variable.names=c("alpha",  "beta",  
 #store the samples in a data frame:    
 police_data_2 <- data.frame(step=1:10000, police_sim_2[[1]])
 ```
-
-
-
-
