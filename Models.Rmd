@@ -9,7 +9,7 @@ output: html_document
 
 - Examined other research papers with similar topics to derive models for our project.
 
-- Produced 2 models for each of our research questions.
+- Produced several models for each of our research questions.
 
 - Cleaned the model data to use with Rjags.
 
@@ -495,12 +495,12 @@ valid_zips <- unique(rownames(Population.race))
 Arrests <- Police.r %>% 
   filter(ZIP_CD %in% valid_zips) %>%
   group_by(ZIP_CD, RACE_CODE_CD) %>%
-  dplyr::summarise(total.arrest = sum(ENFORCEMENT_ACTION_TAKEN_I)) %>%
+  dplyr::summarise(total.arrest = as.integer(sum(ENFORCEMENT_ACTION_TAKEN_I))) %>%
   spread(key=ZIP_CD, value=total.arrest) %>%
   as.data.frame() %>%
   remove_rownames %>%
   column_to_rownames(var='RACE_CODE_CD')
-Arrests[is.na(Arrests)] <- 0
+Arrests[is.na(Arrests)] <- as.integer(0)
 
 Stops <- Police.r %>%
   filter(ZIP_CD %in% valid_zips) %>%
@@ -541,36 +541,37 @@ Stops[is.na(Stops)] <- 0
 
 We are modeling the arrest rate by ethnic group and location using a poisson distribution, in which the number of traffic stops acts as a baseline for the number of arrests. 
 
-```
+```{r}
 #Specify the model
 police_model_1 <- "model{
     #Data
     for(i in 1:4) {
       for(j in 1:58){
-        y[i,j] ~ dpois((13/12)*n[i,j]* exp(mu + alpha[i] + beta[j] + epsilon[i,j])
+        y[i,j] ~ dpois(lam[i, j])
+        lam[i, j] <- (13/12)*n[i,j]* exp(mu + alpha[i] + beta[j])
       }
     }
     
     #Priors
-    mu ~ dunif(-500, 500)
+    mu ~ dunif(0, 1000)
 
     for (j in 1: 58){
-      beta[j] ~ dnorm(0, 1/sigma_beta^2)
+      beta[j] ~ dnorm(0, 1/pow(sigma_beta, 2))
     }
 
     for (i in 1:4){
-      alpha[i] ~ dunif(-50, 50)
+      alpha[i] ~ dunif(0, 1000)
     }
 
-    for (i in 1:4){
-      for (j in 1:62){
-        epsilon[i,j] ~ dnorm(0, 1/sigma_epsilon^2)
-      }
-    }
+    # for (i in 1:4){
+    #   for (j in 1:62){
+    #     epsilon[i,j] ~ dnorm(0, 1/pow(sigma_epsilon, 2))
+    #   }
+    # }
 
     #Hyperpriors
-    sigma_beta ~ dunif(0.00001, 0.01)
-    sigma_epsilon ~ dunif(0.00001, 0.01)
+    sigma_beta ~ dunif(0, 1000)
+    sigma_epsilon ~ dunif(0, 1000)
     
 }"
 
@@ -591,8 +592,8 @@ police_data_1 <- data.frame(step=1:10000, police_sim_1[[1]])
 ```
 
 
-##Model 2
-=======
+## Model 2
+
 ------------------------------------------------------------
 
 ## Research Question 2: Model 2
@@ -620,7 +621,7 @@ police_data_1 <- data.frame(step=1:10000, police_sim_1[[1]])
 
 This model resembles Model 1 but takes into account the population of ethnic groups in each zipcode.
 
-```
+```{r}
 #Specify the model
 police_model_2 <- "model{
     #Data
