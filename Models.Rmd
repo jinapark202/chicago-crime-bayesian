@@ -160,13 +160,13 @@ crime_jags_1 <- jags.model(textConnection(crime_model_1), data=list(y=Year, n=Po
                     inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
 
 
-#simulate a sample from the posterior 
+ #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("p", "u", "s", "delta", "alpha", "beta"), n.iter=40000)
+crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("p", "u", "s", "delta", "alpha", "beta"), n.iter=60000)
 
 
 #store the samples in a data frame:    
-crime_data_1 <- data.frame(step=1:40000, crime_sim_1[[1]])
+crime_data_1 <- data.frame(step=1:60000, crime_sim_1[[1]])
 ```
 
 
@@ -263,7 +263,17 @@ crime_data_3 <- data.frame(step=1:40000, crime_sim_3[[1]])
 ```
 
 ```{r}
+ggplot(crime_data_3, aes(x=alpha)) + geom_histogram(aes(y=..density..))
+```
+
+
+```{r}
 ggplot(crime_data_3, aes(x=step, y=alpha)) + geom_line()
+```
+
+```{r}
+library(MacBayes)
+running_mean_plot(crime_data_3$alpha)
 ```
 
 # Model 4 -- Use demographics information with race
@@ -316,7 +326,6 @@ crime_data_4 <- data.frame(step=1:40000, crime_sim_4[[1]])
 
 #Police model
 
-## Model 1
 
 ```{r}
 library(dplyr)
@@ -361,6 +370,8 @@ Population.race <- Model_Data %>%
   remove_rownames %>%
   column_to_rownames(var='zip') 
 ```
+
+## Model 1
 
 ```
 #Specify the model
@@ -412,7 +423,7 @@ police_sim_1 <- coda.samples(police_jags_1, variable.names=c("mu", "alpha", "sig
 police_data_1 <- data.frame(step=1:10000, police_sim_1[[1]])
 ```
 
-#Model 2
+##Model 2
 
 ```
 #Specify the model
@@ -427,15 +438,15 @@ police_model_2 <- "model{
     }
     
     #Priors
-    alpha ~ dunif(-100, 100)
-    beta ~ dnorm(0, 0.005)
+    alpha ~ dnorm(0, 0.000001)
+    beta ~ dnorm(0, 0.000001)
     
 }"
 
 #set up an algorithm to simulate the posterior by 
 #combining the model and data (y)
 #set the random number seed
-police_jags_2 <- jags.model(textConnection(police_model_2), data=list(y=Stops, n=Arrests, N=Population.race),
+police_jags_2 <- jags.model(textConnection(police_model_2), data=list(n=Stops, y=Arrests, N=Population.race),
                     inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
 
 
@@ -448,6 +459,82 @@ police_sim_2 <- coda.samples(police_jags_2, variable.names=c("alpha",  "beta",  
 police_data_2 <- data.frame(step=1:10000, police_sim_2[[1]])
 ```
 
+# Model 3
+
+```{r, cache=TRUE}
+police_model_3 <- "model{
+  for (i in 1:4) {
+    for(j in 1:58){
+      Y[i,j] ~ dpois(lambda[i,j])
+      log(lambda[i,j]) <- beta0 + (beta1 + beta2[i])*X[i,j]
+    }
+  }
+
+  beta0 ~ dnorm(0,1.0E-06)
+  beta1 ~ dnorm(0,1.0E-06)
+  for (i in 1:4){
+    beta2[i] ~ dnorm(0,1.0E-06)
+  }
+}"
 
 
+police_jags_3 <- jags.model(textConnection(police_model_3), data=list(Y=Arrests, X=Stops),
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
 
+
+#simulate a sample from the posterior 
+#note that we specify both mu and tau variables
+police_sim_3 <- coda.samples(police_jags_3, variable.names=c( "beta0", "beta1", "beta2"), n.iter=20000)
+
+
+#store the samples in a data frame:    
+police_data_3 <- data.frame(step=1:20000, police_sim_3[[1]])
+```
+
+```{r}
+plot(police_sim_3)
+```
+
+
+# Model 4
+
+```{r, cache=TRUE}
+police_model_4 <- "model{
+  for (i in 1:4) {
+    for(j in 1:58){
+      Y[i,j] ~ dpois(lambda[i,j])
+      log(lambda[i,j]) <- beta0 + beta2[i] + beta3[j] + beta1*X[i,j]
+    }
+  }
+
+  beta0 ~ dnorm(0,1.0E-06)
+  beta1 ~ dnorm(0,1.0E-06)
+  for (i in 1:4){
+    beta2[i] ~ dnorm(0,1.0E-06)
+  }
+  for (j in 1: 58){
+    beta3[j] ~ dnorm(0,1.0E-06)
+  }
+
+}"
+
+
+police_jags_4 <- jags.model(textConnection(police_model_4), data=list(Y=Arrests, X=Stops),
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+
+
+#simulate a sample from the posterior 
+#note that we specify both mu and tau variables
+police_sim_4 <- coda.samples(police_jags_4, variable.names=c( "beta0", "beta1", "beta2", "beta3"), n.iter=20000)
+
+
+#store the samples in a data frame:    
+police_data_4 <- data.frame(step=1:20000, police_sim_4[[1]])
+```
+
+
+```{r}
+running_mean_plot(police_data_4$beta0)
+running_mean_plot(police_data_4$beta1)
+running_mean_plot(police_data_4$beta2.2)
+```
