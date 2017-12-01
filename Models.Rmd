@@ -549,7 +549,7 @@ police_model_1 <- "model{
     for(i in 1:4) {
       for(j in 1:58){
         y[i,j] ~ dpois(lam[i, j])
-        lam[i, j] <- (13/12)*n[i,j]* exp(mu + alpha[i] + beta[j])
+        lam[i, j] <- (13/12)*n[i,j]*exp(mu + alpha[i] + beta[j])
       }
     }
     
@@ -805,3 +805,53 @@ quantile(police_data_4$beta2.4, c(0.025, 0.975))+ quantile(police_data_4$beta0, 
 ```
 
 There is a 95% chance that the base arrest rate for Asian, Black, Hispanic, and White are in the above interval respectively. There seems to be evidence that Black and Hispanic has a higher base arrest rate than Asian and White do, accounting for the number of stops of each ethnic groups. 
+
+##Model 1 again
+
+```{r, cache=TRUE}
+police_model_1 <- "model{
+  #Data
+  for (i in 1:4) {
+    for(j in 1:58){
+      y[i,j] ~ dpois((13/12)*n[i,j]*theta[i,j])
+      log(theta[i,j]) <- mu + alpha[i] + beta[j] + epsilon[i,j]
+    }
+  }
+
+  #Priors
+  mu ~ dunif()
+  for (i in 1:4){
+    alpha[i] ~ dnorm(0,1.0E-06)
+  }
+  for (j in 1:58){
+    beta[j] ~ dnorm(0, 1/sigma_beta^2)
+  }
+  for (i in 1:4){
+    for (j in 1:58){
+      epsilon[i,j] ~ dnorm(0, 1/sigma_epsilon^2)
+    }
+  }
+
+  #Hyperpriors
+  sigma_beta ~ dgamma(0.5, 0.0005)
+  sigma_epsilon ~ dgamma(0.5, 0.0005)
+  
+}"
+
+
+police_jags_1 <- jags.model(textConnection(police_model_1), data=list(y=Arrests, n=Stops),
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+
+
+#simulate a sample from the posterior 
+#note that we specify both mu and tau variables
+police_sim_1 <- coda.samples(police_jags_1, variable.names=c("mu", "alpha", "beta", "c"), n.iter=10000)
+
+
+#store the samples in a data frame:    
+police_data_1 <- data.frame(step=1:10000, police_sim_1[[1]])
+```
+
+```{r}
+running_mean_plot(police_data_1$alpha.2.)
+```
