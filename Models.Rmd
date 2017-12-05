@@ -157,8 +157,8 @@ crime_model_0 <- "model{
     }
     
     #Priors
-    alpha ~ dunif(0, 1/1000^2)
-    beta ~ dnorm(0, 1/1000^2)
+    alpha ~ dnorm(0, 1/100^2)
+    beta ~ dnorm(0, 1/100^2)
 
 }"
 
@@ -167,27 +167,32 @@ crime_model_0 <- "model{
 #set the random number seed
 crime_jags_0 <- jags.model(textConnection(crime_model_0), data=list(y=Crime_count, n=Population.vector, time=time),
                     inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+crime_jags_0.1 <- jags.model(textConnection(crime_model_0), data=list(y=Crime_count, n=Population.vector, time=time),
+                    inits=list(alpha=50, beta=-0.05))
 
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim_0 <- coda.samples(crime_jags_0, variable.names=c("alpha", "beta"), n.iter=40000)
+crime_sim_0 <- coda.samples(crime_jags_0, variable.names=c("alpha", "beta"), n.iter=500000)
+crime_sim_0.1 <- coda.samples(crime_jags_0.1, variable.names=c("alpha", "beta"), n.iter=100000)
 
 
 #store the samples in a data frame:    
-crime_data_0 <- data.frame(step=1:40000, crime_sim_0[[1]])
+crime_data_0 <- data.frame(step=1:500000, crime_sim_0[[1]])
+crime_data_0.1 <- data.frame(step=1:10000, crime_sim_0.1[[1]])
 ```
 
+The plot below shows that there is slight linear downward trend in log crime rate over time. So we think it is reasonable to assume a linear relationship between the log crime rate and time.
+
 ```{r}
-Crime_count_log_calc <- log(Crime_count/Population.vector)
-Crime_count_log <- Crime_count_log_calc %>%
+Crime_rate_log_calc <- log(Crime_count/Population.vector)
+Crime_rate_log <- Crime_rate_log_calc %>%
   rownames_to_column() %>%
-  gather(key=year, value=crime_count_log, -rowname) %>%
+  gather(key=year, value=crime_rate_log, -rowname) %>%
   mutate(zip=rowname) %>%
-  select(zip, year, crime_count_log) %>%
+  select(zip, year, crime_rate_log) %>%
   mutate(year=as.numeric(year))
-Crime_count_log
-ggplot(Crime_count_log, aes(x=year, y=crime_count_log, colour=zip)) + geom_point() + geom_line() 
+ggplot(Crime_rate_log, aes(x=year, y=crime_rate_log, colour=zip)) + geom_point() + geom_line() 
 
 # log_crime_plot = list()
 # for (i in 1:5) {
@@ -199,6 +204,28 @@ ggplot(Crime_count_log, aes(x=year, y=crime_count_log, colour=zip)) + geom_point
 # grid.arrange(grobs=log_crime_plot, ncol)
 ```
 
+Initial condition for log crime rate over time
+```{r}
+summary(lm(crime_rate_log ~ year, data=Crime_rate_log %>% filter(!is.na(crime_rate_log) & crime_rate_log > -10) ))
+```
+
+Check if the MCMC converges:
+
+```{r}
+running_mean_plot(crime_data_0.1$alpha)
+running_mean_plot(crime_data_0.1$beta)
+```
+
+Parameter inferences
+
+```{r}
+ggplot(crime_data_0, aes(x=alpha)) + geom_histogram(aes(y=..density..), colour="white")
+ggplot(crime_data_0, aes(x=beta)) + geom_histogram(aes(y=..density..), colour="white")
+mean(crime_data_0$alpha)
+mean(crime_data_0$beta)
+quantile(crime_data_0$alpha, c(0.025, 0.975))
+quantile(crime_data_0$beta, c(0.025, 0.975))
+```
 
 ## Model 1
 
@@ -243,8 +270,8 @@ crime_model_1 <- "model{
     }
     
     #Priors
-    alpha ~ dnorm(0, 1/1000^2)
-    beta ~ dnorm(0, 1/1000^2)
+    alpha ~ dnorm(0, 1/100^2)
+    beta ~ dnorm(0, 1/100^2)
     for(i in 1:58){
       u[i] ~ dnorm(0, prec.u)
       delta[i] ~ dnorm(0, prec.delta)
