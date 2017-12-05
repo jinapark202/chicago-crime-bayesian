@@ -99,6 +99,7 @@ for(i in 1:length(years)){
   
   Hotspot_Crime <- rbind(Hotspot_Crime, total_map)
 }
+
 ```
 
 #### Add demographic information to Model Data
@@ -108,9 +109,12 @@ Demographics <- df_zip_demographics %>% mutate(zip = region)
 Hotspot_Crime <- inner_join(Hotspot_Crime, Demographics, by="zip") 
 Model_Data <- Hotspot_Crime %>%
   select(-c(lat, long, order, piece, group, hole)) %>% distinct
+
+#write.csv(Model_Data, file="police_models_data.csv")
 ```
 
 #### Get populations by zipcode and year
+
 ```{r}
 Crime_count <- Model_Data %>%
   select(Year, zip, total) %>%
@@ -136,7 +140,6 @@ time <- sort(unique(Model_Data$Year))
 percent_nonwhite <- 100 - Model_Data$percent_white
 ```
 
----------------------------------------------------------------
 
 #### Simulation
 
@@ -958,6 +961,7 @@ print(model_4_map_rho)
 #number of zipcodes: 62
 #number races 7
 Police <- read.csv("Police_stops_2016_2017_sample.csv")
+#Model_Data <- read.csv("police_models_data.csv")
 
 Police.r <- Police %>%
   filter(!(RACE_CODE_CD=="I" | RACE_CODE_CD=="P" | RACE_CODE_CD=="WHI") ) %>%
@@ -993,8 +997,11 @@ Stops <- Police.r %>%
   remove_rownames %>%
   column_to_rownames(var='RACE_CODE_CD')
 Stops[is.na(Stops)] <- 0
-```
 
+
+#write.csv(Arrests, "arrests_for_rjags.csv")
+#write.csv(Stops, "stops_for_rjags.csv")
+```
 
 -------------------------------------------------------------------------
 
@@ -1023,6 +1030,7 @@ Stops[is.na(Stops)] <- 0
 
 We are modeling the arrest rate by ethnic group and location using a poisson distribution, in which the number of traffic stops acts as a baseline for the number of arrests. 
 
+<<<<<<< HEAD
 ```
 #Specify the model
 police_model_1 <- "model{
@@ -1142,6 +1150,8 @@ police_sim_2 <- coda.samples(police_jags_2, variable.names=c("alpha",  "beta",  
 police_data_2 <- data.frame(step=1:10000, police_sim_2[[1]])
 ```
 
+=======
+>>>>>>> 88d670486edf72365cc4c9be554e4b06cb6301b7
 
 # Model 3
 
@@ -1324,6 +1334,24 @@ There is a 95% chance that the base arrest rate for Asian, Black, Hispanic, and 
 
 ##Model 1 again
 
+```{r}
+#estimate initial values
+data <- Police.r %>% 
+  filter(ZIP_CD %in% valid_zips) %>%
+  group_by(ZIP_CD, RACE_CODE_CD) %>%
+  dplyr::summarise(total.arrest = as.integer(sum(ENFORCEMENT_ACTION_TAKEN_I)), total.stop = n())
+
+freq_model <- lm(total.arrest ~ RACE_CODE_CD * total.stop, data = data)
+summary(freq_model)
+```
+
+```{r}
+log(0.28603)
+log(0.28603+0.05911) - log(0.28603)
+log(0.28603-0.05712) - log(0.28603)
+log(0.28603-0.12381) - log(0.28603)
+```
+
 - Data is only from January 2016 - February 2017 (13/12)
 
 - i: ethnic group
@@ -1367,45 +1395,73 @@ police_model_1 <- "model{
   }
 
   #Priors
+
   mu ~ dnorm(0,1.0E-06)
 
   for (i in 1:4){
-    alpha[i] ~ dnorm(0,1.0E-06)
+    alpha[i] ~ dnorm(0, 0.005)
   }
 
   for (j in 1:58){
+<<<<<<< HEAD
     beta[j] ~ dnorm(0, 1/b^2)
+=======
+    beta[j] ~ dnorm(0, tau_beta)
+>>>>>>> 88d670486edf72365cc4c9be554e4b06cb6301b7
   }
 
   for (i in 1:4){
     for (j in 1:58){
+<<<<<<< HEAD
       epsilon[i,j] ~ dnorm(0, 1/e^2)
+=======
+      epsilon[i,j] ~ dnorm(0, tau_epsilon)
+>>>>>>> 88d670486edf72365cc4c9be554e4b06cb6301b7
     }
   }
 
   #Hyperpriors
+<<<<<<< HEAD
   b ~ dgamma(0.5, 0.0005)
   e ~ dgamma(0.5, 0.0005)
+=======
+  tau_beta ~ dgamma(0.5, 0.0005)
+  tau_epsilon ~ dgamma(0.5, 0.0005)
+
+  sd_beta = 1/sqrt(tau_beta)
+  sd_epsilon = 1/sqrt(tau_epsilon)
+>>>>>>> 88d670486edf72365cc4c9be554e4b06cb6301b7
   
 }"
 
 
-police_jags_1 <- jags.model(textConnection(police_model_1), data=list(y=Arrests, n=Stops),
-                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+#police_jags_1 <- jags.model(textConnection(police_model_1), data=list(y=Arrests, n=Stops),
+#                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+#initial value set
+inits = list(mu=-1.251659, alpha=c(0, 0.1878534, -0.2227678, -0.5671433), tau_beta=170, tau_epsilon=170, beta=rep(0.03, 58), epsilon=matrix(rep(0.01, 58*4), ncol=58))
 
+police_jags_1 <- jags.model(textConnection(police_model_1), data=list(y=Arrests, n=Stops),
+                    inits=inits)
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-police_sim_1 <- coda.samples(police_jags_1, variable.names=c("mu", "alpha", "beta", "c"), n.iter=10000)
+police_sim_1 <- coda.samples(police_jags_1, variable.names=c("mu", "alpha", "beta", "sd_beta", "sd_epsilon", "epsilon"), n.iter=400000)
+
 
 
 #store the samples in a data frame:    
-police_data_1 <- data.frame(step=1:10000, police_sim_1[[1]])
+police_data_1 <- data.frame(step=1:400000, police_sim_1[[1]])
+```
+```{r}
+running_mean_plot(police_data_1$beta.1.)
 ```
 
+
 ```{r}
+running_mean_plot(police_data_1$mu)
 running_mean_plot(police_data_1$alpha.2.)
 ```
+
 
 ```{r}
 police_viz <- police_data_1 %>%
@@ -1444,5 +1500,11 @@ police_viz1 <- police_data_1 %>%
   mutate(mu = mean(police_data_1$mu)) %>%
   mutate(rate = exp(mu + alpha))
  
+<<<<<<< HEAD
 head(police_viz1)
 ```
+=======
+police_viz1
+```
+
+>>>>>>> 88d670486edf72365cc4c9be554e4b06cb6301b7
