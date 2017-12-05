@@ -105,6 +105,7 @@ for(i in 1:length(years)){
   
   Hotspot_Crime <- rbind(Hotspot_Crime, total_map)
 }
+
 ```
 
 #### Add demographic information to Model Data
@@ -114,28 +115,11 @@ Demographics <- df_zip_demographics %>% mutate(zip = region)
 Hotspot_Crime <- inner_join(Hotspot_Crime, Demographics, by="zip") 
 Model_Data <- Hotspot_Crime %>%
   select(-c(lat, long, order, piece, group, hole)) %>% distinct
+
+#write.csv(Model_Data, file="police_models_data.csv")
 ```
 
 #### Get populations by zipcode and year
-```{r}
-Year <- Model_Data %>%
-  select(Year, zip, total) %>%
-  spread( key=Year, value=total)
-rownames(Year) <- Year$zip 
-Year <- Year %>% select(-zip)
-Year[is.na(Year)] <- 0
-
-Population <- Model_Data %>%
-  select(total_population, zip, Year) %>%
-  spread(key=Year, value=total_population) 
-rownames(Population) <- Population$zip
-Population <- Population %>% select(-zip)
-Population[is.na(Population)] <- 0
-
-time <- sort(unique(Model_Data$Year))
-
-percent_nonwhite <- 100 - Model_Data$percent_white
-```
 
 ---------------------------------------------------------------
 
@@ -477,6 +461,7 @@ crime_data_4 <- data.frame(step=1:40000, crime_sim_4[[1]])
 #number of zipcodes: 62
 #number races 7
 Police <- read.csv("Police_stops_2016_2017_sample.csv")
+#Model_Data <- read.csv("police_models_data.csv")
 
 Police.r <- Police %>%
   filter(!(RACE_CODE_CD=="I" | RACE_CODE_CD=="P" | RACE_CODE_CD=="WHI") ) %>%
@@ -512,8 +497,11 @@ Stops <- Police.r %>%
   remove_rownames %>%
   column_to_rownames(var='RACE_CODE_CD')
 Stops[is.na(Stops)] <- 0
-```
 
+
+#write.csv(Arrests, "arrests_for_rjags.csv")
+#write.csv(Stops, "stops_for_rjags.csv")
+```
 
 -------------------------------------------------------------------------
 
@@ -541,125 +529,6 @@ Stops[is.na(Stops)] <- 0
 ### Specify the Model
 
 We are modeling the arrest rate by ethnic group and location using a poisson distribution, in which the number of traffic stops acts as a baseline for the number of arrests. 
-
-```{r}
-#Specify the model
-police_model_1 <- "model{
-    #Data
-    for(i in 1:4) {
-      for(j in 1:58){
-        y[i,j] ~ dpois(lam[i, j])
-        lam[i, j] <- (13/12)*n[i,j]*exp(mu + alpha[i] + beta[j])
-      }
-    }
-    
-    #Priors
-    mu ~ dunif(0, 1000)
-
-    for (j in 1: 58){
-      beta[j] ~ dnorm(0, 1/pow(sigma_beta, 2))
-    }
-
-    for (i in 1:4){
-      alpha[i] ~ dunif(0, 1000)
-    }
-
-    # for (i in 1:4){
-    #   for (j in 1:62){
-    #     epsilon[i,j] ~ dnorm(0, 1/pow(sigma_epsilon, 2))
-    #   }
-    # }
-
-    #Hyperpriors
-    sigma_beta ~ dunif(0, 1000)
-    sigma_epsilon ~ dunif(0, 1000)
-    
-}"
-
-#set up an algorithm to simulate the posterior by 
-#combining the model and data (y)
-#set the random number seed
-police_jags_1 <- jags.model(textConnection(police_model_1), data=list(y=Stops, n=Arrests),
-                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
-
-
-#simulate a sample from the posterior 
-#note that we specify both mu and tau variables
-police_sim_1 <- coda.samples(police_jags_1, variable.names=c("mu", "alpha", "sigma_beta", "sigma_epsilon", "beta", "epsilon", "theta"), n.iter=10000)
-
-
-#store the samples in a data frame:    
-police_data_1 <- data.frame(step=1:10000, police_sim_1[[1]])
-```
-
-
-## Model 2
-
-------------------------------------------------------------
-
-## Research Question 2: Model 2
-
-### Notation
-- Data is only from January 2016 - February 2017 (13/12)
-
-- i: ethnic group
-
-- j: zipcode locations in Chicago
-
-- y[i, j]: observed number of arrests of ethnic group i in area j
-
-- n[i, j]: the number of traffic stops in area j for ethnic group i
-
-- theta[i, j]: the true crime rate for each ethnic group i in location j
-
-- alpha: represents some relationship between crime rate and the number of arrests.
-
-- N[j, i]: the population of ethnic group i and area j
-
-- beta: error term
-
-### Specify the Model
-
-This model resembles Model 1 but takes into account the population of ethnic groups in each zipcode.
-
-```{r}
-#Specify the model
-police_model_2 <- "model{
-    #Data
-    for(i in 1:4) {
-      for(j in 1:58){
-        y[i,j] ~ dpois((13/12)*theta[i,j]*exp(alpha))
-        n[i,j] ~ dpois(theta[i,j])
-        log(theta[i,j]) = log(N[j,i]) + beta[i, j]
-      }
-    }
-    
-    #Priors
-    alpha ~ dunif(-100, 100)
-
-    for (i in 1:4) {
-       for (j in 1:58){
-           beta[i,j] ~ dnorm(0, 1/sigma_epsilon^2)
-         }
-    }
-
-}"
-
-#set up an algorithm to simulate the posterior by 
-#combining the model and data (y)
-#set the random number seed
-police_jags_2 <- jags.model(textConnection(police_model_2), data=list(n=Stops, y=Arrests, N=Population.race),
-                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
-
-
-#simulate a sample from the posterior 
-#note that we specify both mu and tau variables
-police_sim_2 <- coda.samples(police_jags_2, variable.names=c("alpha",  "beta",  "theta"), n.iter=10000)
-
-
-#store the samples in a data frame:    
-police_data_2 <- data.frame(step=1:10000, police_sim_2[[1]])
-```
 
 
 # Model 3
@@ -808,6 +677,23 @@ There is a 95% chance that the base arrest rate for Asian, Black, Hispanic, and 
 
 ##Model 1 again
 
+```{r}
+#estimate initial values
+data <- Police.r %>% 
+  filter(ZIP_CD %in% valid_zips) %>%
+  group_by(ZIP_CD, RACE_CODE_CD) %>%
+  dplyr::summarise(total.arrest = as.integer(sum(ENFORCEMENT_ACTION_TAKEN_I)), total.stop = n())
+
+freq_model <- lm(total.arrest ~ RACE_CODE_CD * total.stop, data = data)
+summary(freq_model)
+```
+```{r}
+log(0.28603)
+log(0.28603+0.05911) - log(0.28603)
+log(0.28603-0.05712) - log(0.28603)
+log(0.28603-0.12381) - log(0.28603)
+```
+
 ```{r, cache=TRUE}
 police_model_1 <- "model{
   #Data
@@ -819,39 +705,51 @@ police_model_1 <- "model{
   }
 
   #Priors
-  mu ~ dunif()
+  mu ~ dnorm(0, 0.005)
   for (i in 1:4){
-    alpha[i] ~ dnorm(0,1.0E-06)
+    alpha[i] ~ dnorm(0, 0.005)
   }
   for (j in 1:58){
-    beta[j] ~ dnorm(0, 1/sigma_beta^2)
+    beta[j] ~ dnorm(0, tau_beta)
   }
   for (i in 1:4){
     for (j in 1:58){
-      epsilon[i,j] ~ dnorm(0, 1/sigma_epsilon^2)
+      epsilon[i,j] ~ dnorm(0, tau_epsilon)
     }
   }
 
   #Hyperpriors
-  sigma_beta ~ dgamma(0.5, 0.0005)
-  sigma_epsilon ~ dgamma(0.5, 0.0005)
+  tau_beta ~ dgamma(0.5, 0.0005)
+  tau_epsilon ~ dgamma(0.5, 0.0005)
+
+  sd_beta = 1/sqrt(tau_beta)
+  sd_epsilon = 1/sqrt(tau_epsilon)
   
 }"
 
 
-police_jags_1 <- jags.model(textConnection(police_model_1), data=list(y=Arrests, n=Stops),
-                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+#police_jags_1 <- jags.model(textConnection(police_model_1), data=list(y=Arrests, n=Stops),
+#                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+#initial value set
+inits = list(mu=-1.251659, alpha=c(0, 0.1878534, -0.2227678, -0.5671433), tau_beta=170, tau_epsilon=170, beta=rep(0.03, 58), epsilon=matrix(rep(0.01, 58*4), ncol=58))
 
+police_jags_1 <- jags.model(textConnection(police_model_1), data=list(y=Arrests, n=Stops),
+                    inits=inits)
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-police_sim_1 <- coda.samples(police_jags_1, variable.names=c("mu", "alpha", "beta", "c"), n.iter=10000)
+police_sim_1 <- coda.samples(police_jags_1, variable.names=c("mu", "alpha", "beta", "sd_beta", "sd_epsilon", "epsilon"), n.iter=400000)
+
 
 
 #store the samples in a data frame:    
-police_data_1 <- data.frame(step=1:10000, police_sim_1[[1]])
+police_data_1 <- data.frame(step=1:400000, police_sim_1[[1]])
+```
+```{r}
+running_mean_plot(police_data_1$beta.1.)
 ```
 
+
 ```{r}
-running_mean_plot(police_data_1$alpha.2.)
+running_mean_plot(police_data_1$mu)
 ```
