@@ -136,6 +136,7 @@ head(Population)
 Population.vector <- Population$`2010`
 
 time <- sort(unique(Model_Data$Year))
+time
 
 percent_nonwhite <- 100 - Model_Data$percent_white
 ```
@@ -182,62 +183,47 @@ crime_model_0 <- "model{
     }
     
     #Priors
-<<<<<<< HEAD
-    alpha ~ dnorm(0, 1/100^2)
-    beta ~ dnorm(0, 1/100^2)
-=======
-    alpha ~ dnorm(0, 1/1000^2)
-    beta ~ dnorm(0, 1/1000^2)
->>>>>>> 3853b52d53604eaf2a6df99ed8bff62243ff1624
+    alpha ~ dnorm(0, 1/10^2)
+    beta ~ dnorm(0, 1/10^2)
 
 }"
 
 #set up an algorithm to simulate the posterior by 
 #combining the model (nba_model) and data (y)
 #set the random number seed
-crime_jags_0 <- jags.model(textConnection(crime_model_0), data=list(y=Crime_count, n=Population.vector, time=time),
-                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+#crime_jags_0 <- jags.model(textConnection(crime_model_0), data=list(y=Crime_count, n=Population.vector, time=time),
+                    #inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
 crime_jags_0.1 <- jags.model(textConnection(crime_model_0), data=list(y=Crime_count, n=Population.vector, time=time),
-                    inits=list(alpha=50, beta=-0.05))
+                    inits=list(alpha=-8, beta=-0.04))
 
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim_0 <- coda.samples(crime_jags_0, variable.names=c("alpha", "beta"), n.iter=500000)
-crime_sim_0.1 <- coda.samples(crime_jags_0.1, variable.names=c("alpha", "beta"), n.iter=100000)
+#crime_sim_0 <- coda.samples(crime_jags_0, variable.names=c("alpha", "beta"), n.iter=500000)
+crime_sim_0.1 <- coda.samples(crime_jags_0.1, variable.names=c("alpha", "beta"), n.iter=50000)
 
 
 #store the samples in a data frame:    
-crime_data_0 <- data.frame(step=1:500000, crime_sim_0[[1]])
-crime_data_0.1 <- data.frame(step=1:10000, crime_sim_0.1[[1]])
+#crime_data_0 <- data.frame(step=1:500000, crime_sim_0[[1]])
+crime_data_0.1 <- data.frame(step=1:50000, crime_sim_0.1[[1]])
 ```
 
-<<<<<<< HEAD
+
 The plot below shows that there is slight linear downward trend in log crime rate over time. So we think it is reasonable to assume a linear relationship between the log crime rate and time.
 
 ```{r}
+## Plot log(y_(ij)/n_i) over year
 Crime_rate_log_calc <- log(Crime_count/Population.vector)
 Crime_rate_log <- Crime_rate_log_calc %>%
-=======
 
-## Plot log(y_(ij)/n_i) over year
-```{r}
-Crime_count_log_calc <- log(Crime_count/Population.vector)
-
-Crime_count_log <- Crime_count_log_calc %>%
->>>>>>> 3853b52d53604eaf2a6df99ed8bff62243ff1624
   rownames_to_column() %>%
   gather(key=year, value=crime_rate_log, -rowname) %>%
   mutate(zip=rowname) %>%
   select(zip, year, crime_rate_log) %>%
   mutate(year=as.numeric(year))
-<<<<<<< HEAD
 ggplot(Crime_rate_log, aes(x=year, y=crime_rate_log, colour=zip)) + geom_point() + geom_line() 
-=======
-head(Crime_count_log)
+head(Crime_rate_log)
 
-ggplot(Crime_count_log, aes(x=year, y=crime_count_log, colour=zip)) + geom_point() + geom_line() 
->>>>>>> 3853b52d53604eaf2a6df99ed8bff62243ff1624
 
 # log_crime_plot = list()
 # for (i in 1:5) {
@@ -249,9 +235,10 @@ ggplot(Crime_count_log, aes(x=year, y=crime_count_log, colour=zip)) + geom_point
 # grid.arrange(grobs=log_crime_plot, ncol)
 ```
 
-<<<<<<< HEAD
+
 Initial condition for log crime rate over time
 ```{r}
+summary(Crime_rate_log$crime_rate_log)
 summary(lm(crime_rate_log ~ year, data=Crime_rate_log %>% filter(!is.na(crime_rate_log) & crime_rate_log > -10) ))
 ```
 
@@ -271,8 +258,10 @@ mean(crime_data_0$alpha)
 mean(crime_data_0$beta)
 quantile(crime_data_0$alpha, c(0.025, 0.975))
 quantile(crime_data_0$beta, c(0.025, 0.975))
-=======
+```
+
 ## Plot log(y_(ij)/n_i) over income
+
 ```{r}
 Model_Data_1 <- Model_Data %>%
   filter(Year == 2010) %>%
@@ -288,7 +277,6 @@ ggplot(Model_Data_1, aes(x=per_capita_income, y=crime_count_log)) + geom_point()
 ## Plot log(y_(ij)/n_i) over ethnic group
 ```{r}
 ggplot(Model_Data_1, aes(x=percent_nonwhite, y=crime_count_log)) + geom_point() + labs(x="Nonwhite Percentage", y="Log of Crime Rate", title="Relationship between Nonwhite Percentage and Log of Crime Rate")
->>>>>>> 3853b52d53604eaf2a6df99ed8bff62243ff1624
 ```
 
 ## Model 1
@@ -346,14 +334,9 @@ crime_model_1 <- "model{
     }
     
     #Priors
-<<<<<<< HEAD
     alpha ~ dnorm(0, 1/100^2)
     beta ~ dnorm(0, 1/100^2)
-=======
-    alpha ~ dnorm(0, 1/1000^2)
-    beta ~ dnorm(0, 1/1000^2)
 
->>>>>>> 3853b52d53604eaf2a6df99ed8bff62243ff1624
     for(i in 1:58){
       u[i] ~ dnorm(0, prec.u)
       delta[i] ~ dnorm(0, prec.delta)
@@ -1080,128 +1063,6 @@ Stops[is.na(Stops)] <- 0
 
 We are modeling the arrest rate by ethnic group and location using a poisson distribution, in which the number of traffic stops acts as a baseline for the number of arrests. 
 
-<<<<<<< HEAD
-```
-#Specify the model
-police_model_1 <- "model{
-    #Data
-    for(i in 1:4) {
-      for(j in 1:58){
-        y[i,j] ~ dpois(lam[i, j])
-        lam[i, j] <- (13/12)*n[i,j]*exp(mu + alpha[i] + beta[j])
-      }
-    }
-    
-    #Priors
-    mu ~ dunif(0, 1000)
-
-    for (j in 1: 58){
-      beta[j] ~ dnorm(0, 1/pow(sigma_beta, 2))
-    }
-
-    for (i in 1:4){
-      alpha[i] ~ dunif(0, 1000)
-    }
-
-    # for (i in 1:4){
-    #   for (j in 1:62){
-    #     epsilon[i,j] ~ dnorm(0, 1/pow(sigma_epsilon, 2))
-    #   }
-    # }
-
-    #Hyperpriors
-    sigma_beta ~ dunif(0, 1000)
-    sigma_epsilon ~ dunif(0, 1000)
-    
-}"
-
-#set up an algorithm to simulate the posterior by 
-#combining the model and data (y)
-#set the random number seed
-police_jags_1 <- jags.model(textConnection(police_model_1), data=list(y=Stops, n=Arrests),
-                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
-
-
-#simulate a sample from the posterior 
-#note that we specify both mu and tau variables
-police_sim_1 <- coda.samples(police_jags_1, variable.names=c("mu", "alpha", "sigma_beta", "sigma_epsilon", "beta", "epsilon", "theta"), n.iter=10000)
-
-
-#store the samples in a data frame:    
-police_data_1 <- data.frame(step=1:10000, police_sim_1[[1]])
-```
-
-
-## Model 2
-
-------------------------------------------------------------
-
-## Research Question 2: Model 2
-
-### Notation
-- Data is only from January 2016 - February 2017 (13/12)
-
-- i: ethnic group
-
-- j: zipcode locations in Chicago
-
-- y[i, j]: observed number of arrests of ethnic group i in area j
-
-- n[i, j]: the number of traffic stops in area j for ethnic group i
-
-- $\theta$[i, j]: the true crime rate for each ethnic group i in location j
-
-- $\alpha$: represents some relationship between crime rate and the number of arrests.
-
-- N[j, i]: the population of ethnic group i and area j
-
-- $\beta$: error term
-
-### Specify the Model
-
-This model resembles Model 1 but takes into account the population of ethnic groups in each zipcode.
-
-```
-#Specify the model
-police_model_2 <- "model{
-    #Data
-    for(i in 1:4) {
-      for(j in 1:58){
-        y[i,j] ~ dpois((13/12)*theta[i,j]*exp(alpha))
-        n[i,j] ~ dpois(theta[i,j])
-        log(theta[i,j]) = log(N[j,i]) + beta[i, j]
-      }
-    }
-    
-    #Priors
-    alpha ~ dunif(-100, 100)
-
-    for (i in 1:4) {
-       for (j in 1:58){
-           beta[i,j] ~ dnorm(0, 1/sigma_epsilon^2)
-         }
-    }
-
-}"
-
-#set up an algorithm to simulate the posterior by 
-#combining the model and data (y)
-#set the random number seed
-police_jags_2 <- jags.model(textConnection(police_model_2), data=list(n=Stops, y=Arrests, N=Population.race),
-                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
-
-
-#simulate a sample from the posterior 
-#note that we specify both mu and tau variables
-police_sim_2 <- coda.samples(police_jags_2, variable.names=c("alpha",  "beta",  "theta"), n.iter=10000)
-
-
-#store the samples in a data frame:    
-police_data_2 <- data.frame(step=1:10000, police_sim_2[[1]])
-```
-
-=======
->>>>>>> 88d670486edf72365cc4c9be554e4b06cb6301b7
 
 # Model 3
 
@@ -1453,34 +1314,18 @@ police_model_1 <- "model{
   }
 
   for (j in 1:58){
-<<<<<<< HEAD
     beta[j] ~ dnorm(0, 1/b^2)
-=======
-    beta[j] ~ dnorm(0, tau_beta)
->>>>>>> 88d670486edf72365cc4c9be554e4b06cb6301b7
   }
 
   for (i in 1:4){
     for (j in 1:58){
-<<<<<<< HEAD
       epsilon[i,j] ~ dnorm(0, 1/e^2)
-=======
-      epsilon[i,j] ~ dnorm(0, tau_epsilon)
->>>>>>> 88d670486edf72365cc4c9be554e4b06cb6301b7
     }
   }
 
   #Hyperpriors
-<<<<<<< HEAD
   b ~ dgamma(0.5, 0.0005)
   e ~ dgamma(0.5, 0.0005)
-=======
-  tau_beta ~ dgamma(0.5, 0.0005)
-  tau_epsilon ~ dgamma(0.5, 0.0005)
-
-  sd_beta = 1/sqrt(tau_beta)
-  sd_epsilon = 1/sqrt(tau_epsilon)
->>>>>>> 88d670486edf72365cc4c9be554e4b06cb6301b7
   
 }"
 
@@ -1550,11 +1395,6 @@ police_viz1 <- police_data_1 %>%
   mutate(mu = mean(police_data_1$mu)) %>%
   mutate(rate = exp(mu + alpha))
  
-<<<<<<< HEAD
 head(police_viz1)
 ```
-=======
-police_viz1
-```
 
->>>>>>> 88d670486edf72365cc4c9be554e4b06cb6301b7
