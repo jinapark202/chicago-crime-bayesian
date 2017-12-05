@@ -7,21 +7,15 @@ output: html_document
 
 ### Progress Made
 
-- Examined other research papers with similar topics to derive models for our project.
+- We created map visualizations for our crime models.
 
-- Produced several models for each of our research questions.
+- Altered the priors on our police models.
 
-- Cleaned the model data to use with Rjags.
+- Made appropriate data frames to map our rjags data.
 
 ### Group Roles
 
-- We came up with the two research questions together. 
 
-- We worked on formulating the models together by reading past research and altering it with our questions.
-
-- Phuc cleaned the traffic stops data.
-
-- Jina wrote this report with the help of Phuc.
 
 -----------------------------------------------------------
 
@@ -118,19 +112,22 @@ Model_Data <- Hotspot_Crime %>%
 
 #### Get populations by zipcode and year
 ```{r}
-Year <- Model_Data %>%
+Crime_count <- Model_Data %>%
   select(Year, zip, total) %>%
-  spread( key=Year, value=total)
-rownames(Year) <- Year$zip 
-Year <- Year %>% select(-zip)
-Year[is.na(Year)] <- 0
+  spread(key=Year, value=total)
+rownames(Crime_count) <- Crime_count$zip 
+Crime_count <- Crime_count %>% select(-zip)
+Crime_count[is.na(Crime_count)] <- 0
 
 Population <- Model_Data %>%
   select(total_population, zip, Year) %>%
-  spread(key=Year, value=total_population) 
+  spread(key=Year, value=total_population) %>%
+  select('2010', zip)
 rownames(Population) <- Population$zip
 Population <- Population %>% select(-zip)
 Population[is.na(Population)] <- 0
+
+Population.vector <- Population$`2010`
 
 time <- sort(unique(Model_Data$Year))
 
@@ -142,6 +139,64 @@ percent_nonwhite <- 100 - Model_Data$percent_white
 #### Simulation
 
 # Research Question 1
+
+## Model 0
+
+```{r, cache=TRUE}
+#Specify the model
+crime_model_0 <- "model{
+    #Data
+    for(i in 1:58) {
+      for(j in 1:8){
+        y[i,j] ~ dbin(p[i,j], n[i])
+        logit(p[i,j]) = alpha + beta * time[j]
+      }
+    }
+    
+    #Priors
+    alpha ~ dunif(0, 1/1000^2)
+    beta ~ dnorm(0, 1/1000^2)
+
+}"
+
+#set up an algorithm to simulate the posterior by 
+#combining the model (nba_model) and data (y)
+#set the random number seed
+crime_jags_0 <- jags.model(textConnection(crime_model_0), data=list(y=Crime_count, n=Population.vector, time=time),
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+
+
+#simulate a sample from the posterior 
+#note that we specify both mu and tau variables
+crime_sim_0 <- coda.samples(crime_jags_0, variable.names=c("alpha", "beta"), n.iter=40000)
+
+
+#store the samples in a data frame:    
+crime_data_0 <- data.frame(step=1:40000, crime_sim_0[[1]])
+```
+
+```{r}
+Crime_count_log_calc <- log(Crime_count/Population.vector)
+Crime_count_log <- Crime_count_log_calc %>%
+  rownames_to_column() %>%
+  gather(key=year, value=crime_count_log, -rowname) %>%
+  mutate(zip=rowname) %>%
+  select(zip, year, crime_count_log) %>%
+  mutate(year=as.numeric(year))
+Crime_count_log
+ggplot(Crime_count_log, aes(x=year, y=crime_count_log, colour=zip)) + geom_point() + geom_line() 
+
+# log_crime_plot = list()
+# for (i in 1:5) {
+#   plot <- ggplot(Crime_count_log %>% filter(zip==Crime_count_log$zip[i]), aes(x=year, y=crime_count_log)) + geom_point() + geom_line() 
+#   log_crime_plot[[i]] <- plot
+# }
+
+# library(gridExtra)
+# grid.arrange(grobs=log_crime_plot, ncol)
+```
+
+
 ## Model 1
 
 ### Notation
@@ -178,24 +233,22 @@ crime_model_1 <- "model{
     #Data
     for(i in 1:58) {
       for(j in 1:8){
-        y[i,j] ~ dbin(p[i,j], n[i,j])
+        y[i,j] ~ dbin(p[i,j], n[i])
 
-        logit(p[i,j]) = alpha + u[i] + s[i] + beta*time[j] + delta[i]*time[j]
+        logit(p[i,j]) = alpha + u[i] + beta*time[j] + delta[i]*time[j]
       }
     }
     
     #Priors
-    alpha ~ dunif(-1000, 1000)
-    beta ~ dnorm(0, 1/1000)
+    alpha ~ dnorm(0, 1/1000^2)
+    beta ~ dnorm(0, 1/1000^2)
     for(i in 1:58){
       u[i] ~ dnorm(0, prec.u)
-      s[i] ~ dnorm(0, prec.s)
       delta[i] ~ dnorm(0, prec.delta)
     }
 
     #Hyperpriors
     prec.u ~ dgamma(0.5, 0.0005)
-    prec.s ~ dgamma(0.5, 0.0005)
     prec.delta ~ dgamma(0.5, 0.0005)
     
 }"
@@ -203,19 +256,22 @@ crime_model_1 <- "model{
 #set up an algorithm to simulate the posterior by 
 #combining the model (nba_model) and data (y)
 #set the random number seed
-crime_jags_1 <- jags.model(textConnection(crime_model_1), data=list(y=Year, n=Population, time=time),
+crime_jags_1 <- jags.model(textConnection(crime_model_1), data=list(y=Crime_count, n=Population.vector, time=time),
                     inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
 
 
  #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("p", "u", "s", "delta", "alpha", "beta"), n.iter=60000)
+crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("p", "u", "delta", "alpha", "beta"), n.iter=60000)
 
 
 #store the samples in a data frame:    
 crime_data_1 <- data.frame(step=1:60000, crime_sim_1[[1]])
 ```
 
+```{r}
+Year/Population
+```
 
 ### Parameter Interpretation
 
@@ -273,23 +329,21 @@ crime_model_2 <- "model{
     #Data
     for(i in 1:58) {
       for(j in 1:8){
-        y[i,j] ~ dbin(p[i,j], n[i,j])
-        logit(p[i,j]) = alpha + u[i] + s[i]+ delta[i]*time[j]
+        y[i,j] ~ dbin(p[i,j], n[i])
+        logit(p[i,j]) = alpha + u[i] + delta[i]*time[j]
       }
     }
     
     #Priors
-    alpha ~ dunif(-1000, 1000)
-    beta ~ dnorm(0, 1/1000)
+    alpha ~ dunif(0, 1000^2)
+    beta ~ dnorm(0, 1/1000^2)
     for(i in 1:58){
       u[i] ~ dnorm(0, prec.u)
-      s[i] ~ dnorm(0, prec.s)
       delta[i] ~ dnorm(0, prec.delta)
     }
 
     #Hyperpriors
     prec.u ~ dgamma(0.5, 0.0005)
-    prec.s ~ dgamma(0.5, 0.0005)
     prec.delta ~ dgamma(0.5, 0.0005)
     
 }"
@@ -297,13 +351,13 @@ crime_model_2 <- "model{
 #set up an algorithm to simulate the posterior by 
 #combining the model (nba_model) and data (y)
 #set the random number seed
-crime_jags_2 <- jags.model(textConnection(crime_model_2), data=list(y=Year, n=Population, time=time),
+crime_jags_2 <- jags.model(textConnection(crime_model_2), data=list(y=Crime_count, n=Population.vector, time=time),
                     inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
 
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim_2 <- coda.samples(crime_jags_2, variable.names=c("p", "u", "s", "delta", "alpha"), n.iter=40000)
+crime_sim_2 <- coda.samples(crime_jags_2, variable.names=c("p", "u", "delta", "alpha"), n.iter=40000)
 
 
 #store the samples in a data frame:    
@@ -465,24 +519,22 @@ crime_model_3 <- "model{
     #Data
     for(i in 1:58) {
       for(j in 1:8){
-        y[i,j] ~ dbin(p[i,j], n[i,j])
-        logit(p[i,j]) = alpha + u[i] + s[i]+ delta[i]*time[j] + sigma[i]*income[i]
+        y[i,j] ~ dbin(p[i,j], n[i])
+        logit(p[i,j]) = alpha + u[i] + delta[i] * time[j] + sigma[i] * income[i]
       }
     }
     
     #Priors
-    alpha ~ dunif(-1000, 1000)
-    beta ~ dnorm(0, 1/1000)
+    alpha ~ dunif(0, 1/1000^2)
+    beta ~ dnorm(0, 1/1000^2)
     for(i in 1:58){
       u[i] ~ dnorm(0, prec.u)
-      s[i] ~ dnorm(0, prec.s)
       delta[i] ~ dnorm(0, prec.delta)
       sigma[i] ~ dnorm(0, prec.sigma)
     }
 
     #Hyperpriors
     prec.u ~ dgamma(0.5, 0.0005)
-    prec.s ~ dgamma(0.5, 0.0005)
     prec.delta ~ dgamma(0.5, 0.0005)
     prec.sigma ~ dgamma(0.5, 0.0005)
     
@@ -491,13 +543,13 @@ crime_model_3 <- "model{
 #set up an algorithm to simulate the posterior by 
 #combining the model (nba_model) and data (y)
 #set the random number seed
-crime_jags_3 <- jags.model(textConnection(crime_model_3), data=list(y=Year, n=Population, time=time, income=Model_Data$per_capita_income),
+crime_jags_3 <- jags.model(textConnection(crime_model_3), data=list(y=Crime_count, n=Population.vector, time=time, income=Model_Data$per_capita_income),
                     inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
 
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim_3 <- coda.samples(crime_jags_3, variable.names=c("p", "u", "s", "delta", "alpha", "sigma"), n.iter=40000)
+crime_sim_3 <- coda.samples(crime_jags_3, variable.names=c("p", "u", "delta", "alpha", "sigma"), n.iter=40000)
 
 
 #store the samples in a data frame:    
@@ -683,17 +735,16 @@ crime_model_4 <- "model{
     #Data
     for(i in 1:58) {
       for(j in 1:8){
-        y[i,j] ~ dbin(p[i,j], n[i,j])
-        logit(p[i,j]) = alpha + u[i] + s[i]+ delta[i]*time[j] + sigma[i]*income[i] + rho[i]*percent_nonwhite[i]
+        y[i,j] ~ dbin(p[i,j], n[i])
+        logit(p[i,j]) = alpha + u[i] + delta[i] * time[j] + sigma[i]*income[i] + rho[i]*percent_nonwhite[i]
       }
     }
     
     #Priors
-    alpha ~ dunif(-1000, 1000)
-    beta ~ dnorm(0, 1/1000)
+    alpha ~ dunif(0, 1/1000^2)
+    beta ~ dnorm(0, 1/1000^2)
     for(i in 1:58){
       u[i] ~ dnorm(0, prec.u)
-      s[i] ~ dnorm(0, prec.s)
       delta[i] ~ dnorm(0, prec.delta)
       sigma[i] ~ dnorm(0, prec.sigma)
       rho[i] ~ dnorm(0, 0.01)
@@ -701,7 +752,6 @@ crime_model_4 <- "model{
 
     #Hyperpriors
     prec.u ~ dgamma(0.5, 0.0005)
-    prec.s ~ dgamma(0.5, 0.0005)
     prec.delta ~ dgamma(0.5, 0.0005)
     prec.sigma ~ dgamma(0.5, 0.0005)
     
@@ -710,13 +760,13 @@ crime_model_4 <- "model{
 #set up an algorithm to simulate the posterior by 
 #combining the model (nba_model) and data (y)
 #set the random number seed
-crime_jags_4 <- jags.model(textConnection(crime_model_4), data=list(y=Year, n=Population, time=time, income=Model_Data$per_capita_income, percent_nonwhite=percent_nonwhite),
+crime_jags_4 <- jags.model(textConnection(crime_model_4), data=list(y=Crime_count, n=Population.vector, time=time, income=Model_Data$per_capita_income, percent_nonwhite=percent_nonwhite),
                     inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
 
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim_4 <- coda.samples(crime_jags_4, variable.names=c("p", "u", "s", "delta", "alpha", "sigma", "rho"), n.iter=40000)
+crime_sim_4 <- coda.samples(crime_jags_4, variable.names=c("p", "u", "delta", "alpha", "sigma", "rho"), n.iter=40000)
 
 
 #store the samples in a data frame:    
@@ -1255,6 +1305,5 @@ police_viz1 <- police_data_1 %>%
   mutate(mu = mean(police_data_1$mu)) %>%
   mutate(rate = exp(mu + alpha))
  
-
 police_viz1
 ```
