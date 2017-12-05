@@ -1040,6 +1040,68 @@ Stops[is.na(Stops)] <- 0
 
 ## Research Question 2 - Model 1
 
+### Preliminary visualizations
+
+
+Proportion of stops over population for each ethnic group: number of stops over population of each ethnic group in whole city.
+
+```{r}
+total_pop <- Model_Data %>% filter(Year==2010) %>% select(total_population)
+population_by_ethnic <- Model_Data %>%
+  filter(Year==2010) %>%
+  mutate_at(c("percent_asian", "percent_black", "percent_hispanic", "percent_white"), function(x){x* total_pop$total_population/100}) %>%
+  mutate(zip = as.numeric(zip)) %>%
+  select(percent_asian, percent_black, percent_hispanic, percent_white, zip)
+population_by_ethnic
+print(colSums(population_by_ethnic))
+data_stops = data.frame(race=c("Asian Pacific Islander", "Black", "Hispanic", "White"), stop_rate=(rowSums(Stops)/colSums(population_by_ethnic %>% select(-zip))))
+rownames(data_stops) <- c()
+head(data_stops %>% arrange(desc(stop_rate)))
+```
+
+The numbers above show that Black and Hispanics are stopped at higher rate given their population.
+
+```{r}
+#is it appropriate to assume linear trend between number of stops and NUMBER of people who live in zipcode
+l <- population_by_ethnic %>%
+  mutate(BLK=percent_black, HISPANIC=percent_hispanic, API=percent_asian, WHT=percent_white) %>%
+  select(BLK, HISPANIC, API, WHT, zip) %>%
+  gather(key=RACE_CODE_CD, value=population, - zip)
+data <- Police.r %>%
+  filter(ZIP_CD %in% valid_zips) %>%
+  group_by(ZIP_CD, RACE_CODE_CD) %>%
+  dplyr::summarise(total.stop = n()) %>%
+  inner_join(l, by=c("ZIP_CD" = 'zip', 'RACE_CODE_CD')) %>%
+  mutate(race=RACE_CODE_CD)
+ggplot(data, aes(x=population, y=total.stop, colour=RACE_CODE_CD)) + geom_point() + geom_smooth() +
+  labs(x="Population count", y="Number of traffic stops", title="Traffic Stops By Population") + 
+  guides(colour=guide_legend("Race"))+
+  theme(plot.title = element_text(hjust=0.5))
+
+#Caption: "Visualization of number of traffic stops as the population of each ethnic group increases for each zipcode"
+```
+
+
+```{r}
+#is it appropriate to assume linear trend between number of stops and PERCENT of people who live in each zipcode
+l <- Model_Data %>%
+  filter(Year=='2010') %>%
+  mutate(BLK=percent_black, HISPANIC=percent_hispanic, API=percent_asian, WHT=percent_white) %>%
+  select(BLK, HISPANIC, API, WHT, zip) %>%
+  gather(key=RACE_CODE_CD, value=population, - zip) %>%
+  mutate(zip=as.numeric(zip))
+data <- Police.r %>%
+  filter(ZIP_CD %in% valid_zips) %>%
+  group_by(ZIP_CD, RACE_CODE_CD) %>%
+  dplyr::summarise(total.stop = n()) %>%
+  inner_join(l, by=c("ZIP_CD" = 'zip', 'RACE_CODE_CD')) %>%
+  mutate(race=RACE_CODE_CD)
+ggplot(data, aes(x=population, y=total.stop, colour=RACE_CODE_CD)) + geom_point() + geom_smooth() +
+  labs(x="Percent of population", y="Number of traffic stops", fill="Race", title="Traffic Stops By Percentage of Population") + 
+  guides(colour=guide_legend("Race")) +
+  theme(plot.title = element_text(hjust=0.5))
+```
+
 ### Notation
 - Data is only from January 2016 - February 2017 (13/12)
 
@@ -1397,4 +1459,6 @@ police_viz1 <- police_data_1 %>%
  
 head(police_viz1)
 ```
+
+
 
