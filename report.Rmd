@@ -1,0 +1,24 @@
+---
+title: "Bayesian Report - Replace with title"
+author: "Jina Park, Phuc Nguyen"
+date: "12/6/2017"
+output: html_document
+---
+
+
+### Motivation
+
+Chicago is often recognized as one of the most dangerous cities in the United States. In fact, it currently leads the nation with the most homicides and violent crimes. Using police data from the City of Chicago's Data Portal, we examine crime hot spots in Chicago and whether crime rates differ by geographic and demographic information. Are certain crimes more likely in certain areas than others?
+
+Traffic stops and subsequent deaths of Sandra Bland raise growing concerns that of police harassment toward minorities. We analyze the rates in which people in Chicago are stopped by ethnicity groups and location. Are certain ethnic groups stopped at a disproportionately greater rate than others?
+
+### Methods and Results
+
+### Next Steps
+
+### Bibliography
+- Gelman, Andrew, et al. “An Analysis of the New York City Police Department's "Stop-and-Frisk" Policy in the Context of Claims of Racial Bias.” Journal of the American Statistical Association, vol. 102, no. 479, 2007, pp. 813–823.
+
+- Law, Jane, et al. “Analyzing Hotspots of Crime Using a Bayesian Spatiotemporal Modeling Approach: A Case Study of Violent Crime in the Greater Toronto Area.” Geographical Analysis, vol. 47, no. 1, Oct. 2014, pp. 1–19.
+
+### Appendix and supplementary material
