@@ -183,7 +183,7 @@ head(Crime_count)
 #Specify the model
 crime_model_0 <- "model{
     #Data
-    for(j in 1:8){
+    for(j in 1:6){
       y[j] ~ dbin(p[j], n)
       logit(p[j]) = beta*time[j]
     }
@@ -225,6 +225,7 @@ Crime_rate_log <- Crime_rate_log_calc %>%
 ggplot(Crime_rate_log, aes(x=year, y=crime_rate_log, colour=zip)) + geom_point() + geom_line() 
 head(Crime_rate_log)
 
+ggplot(Crime_count,aes(x=Year, y=total.stop)) + geom_point() + geom_line() + labs(title="Crime trend over time")
 
 # log_crime_plot = list()
 # for (i in 1:5) {
@@ -235,7 +236,7 @@ head(Crime_rate_log)
 # library(gridExtra)
 # grid.arrange(grobs=log_crime_plot, ncol)
 ```
-
+General trend shows a decrease in crime incidents, however, the variation might be different for different locations.
 
 Check if the MCMC converges:
 
@@ -250,6 +251,8 @@ ggplot(crime_data_0, aes(x=beta)) + geom_histogram(aes(y=..density..), colour="w
 mean(crime_data_0$beta)
 quantile(crime_data_0$beta, c(0.025, 0.975))
 ```
+
+The posterior mean is -0.003811, and 95% percent chance that the true time trend over log crime rate is between -0.003822 and -0.003811. So the predicted crime incidents for 2016 is $Population * exp(-0.003811 * 2016) = 1246.776$ compared to the actual number of 1082, which is a 15% error rate in prediction.
 
 ## Plot log(y_(ij)/n_i) over income
 
@@ -315,35 +318,34 @@ $$prec.delta \sim Gamma(0.5, 0.0005)$$
 ```{r, cache=TRUE}
 #Data
 Crime_count <- Model_Data %>%
-  select(Year, zip, total) %>%
-  spread(key=Year, value=total)
-rownames(Crime_count) <- Crime_count$zip 
-Crime_count <- Crime_count %>% select(-zip)
+  select(Year, zip, total)
 Crime_count[is.na(Crime_count)] <- 0
-head(Crime_count)
+Crime_count
+
+Population <- Model_Data %>%
+  filter(Year=='2010') %>%
+  select(total_population, zip)
+Population
 
 #Specify the model
 crime_model_1 <- "model{
     #Data
-    for(i in 1:58) {
-      for(j in 1:8){
-        y[i,j] ~ dbin(p[i,j], n[i])
-
-        logit(p[i,j]) = alpha + u[i] + beta*time[j] + delta[i]*time[j]
-      }
+    for(i in 1:463) {
+      y[] ~ dbin(p[i], n[i])
+      logit(p[i]) = beta*time[j] + delta*[i]
     }
     
     #Priors
-    alpha ~ dnorm(0, 1/100^2)
+    #alpha ~ dnorm(0, 1/100^2)
     beta ~ dnorm(0, 1/100^2)
 
     for(i in 1:58){
-      u[i] ~ dnorm(0, prec.u)
+      #u[i] ~ dnorm(0, prec.u)
       delta[i] ~ dnorm(0, prec.delta)
     }
 
     #Hyperpriors
-    prec.u ~ dgamma(0.5, 0.0005)
+    #prec.u ~ dgamma(0.5, 0.0005)
     prec.delta ~ dgamma(0.5, 0.0005)
     
 }"
@@ -357,7 +359,7 @@ crime_jags_1 <- jags.model(textConnection(crime_model_1), data=list(y=Crime_coun
 
  #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("p", "u", "delta", "alpha", "beta"), n.iter=60000)
+crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("p", "u", "delta", "beta"), n.iter=60000)
 
 
 #store the samples in a data frame:    
@@ -368,9 +370,9 @@ crime_data_1 <- data.frame(step=1:60000, crime_sim_1[[1]])
 ### Parameter Interpretation
 
 ```{r}
-running_mean_plot(crime_data_1$alpha)
+#running_mean_plot(crime_data_1$alpha)
 running_mean_plot(crime_data_1$beta)
-running_mean_plot(crime_data_1$u.1.)
+#running_mean_plot(crime_data_1$u.1.)
 running_mean_plot(crime_data_1$delta.1.)
 ```
 
