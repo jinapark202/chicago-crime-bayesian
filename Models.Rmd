@@ -318,34 +318,41 @@ $$prec.delta \sim Gamma(0.5, 0.0005)$$
 ```{r, cache=TRUE}
 #Data
 Crime_count <- Model_Data %>%
-  select(Year, zip, total)
+  select(Year, zip, total) %>%
+  spread(key=Year, value=total)
+rownames(Crime_count) <- Crime_count$zip 
+Crime_count <- Crime_count %>% select(-zip)
 Crime_count[is.na(Crime_count)] <- 0
 Crime_count
 
 Population <- Model_Data %>%
-  filter(Year=='2010') %>%
+  filter(Year==2010) %>%
   select(total_population, zip)
 Population
+
+time <- sort(unique(Model_Data$Year))
 
 #Specify the model
 crime_model_1 <- "model{
     #Data
-    for(i in 1:463) {
-      y[] ~ dbin(p[i], n[i])
-      logit(p[i]) = beta*time[j] + delta*[i]
+    for(i in 1:58) {
+      for(j in 1:6){
+        y[i,j] ~ dbin(p[i,j], n[i])
+        logit(p[i,j]) = delta[i]*time[j] + u[i]
+      }
     }
     
     #Priors
     #alpha ~ dnorm(0, 1/100^2)
-    beta ~ dnorm(0, 1/100^2)
+    #beta ~ dnorm(0, 1/100^2)
 
     for(i in 1:58){
-      #u[i] ~ dnorm(0, prec.u)
+      u[i] ~ dnorm(0, prec.u)
       delta[i] ~ dnorm(0, prec.delta)
     }
 
     #Hyperpriors
-    #prec.u ~ dgamma(0.5, 0.0005)
+    prec.u ~ dgamma(0.5, 0.0005)
     prec.delta ~ dgamma(0.5, 0.0005)
     
 }"
@@ -353,27 +360,30 @@ crime_model_1 <- "model{
 #set up an algorithm to simulate the posterior by 
 #combining the model (nba_model) and data (y)
 #set the random number seed
-crime_jags_1 <- jags.model(textConnection(crime_model_1), data=list(y=Crime_count, n=Population.vector, time=time),
+crime_jags_1 <- jags.model(textConnection(crime_model_1), data=list(y=Crime_count, n=Population$total_population, time=time),
                     inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
 
 
  #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("p", "u", "delta", "beta"), n.iter=60000)
+crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("p", "delta", "u"), n.iter=70000)
 
 
 #store the samples in a data frame:    
-crime_data_1 <- data.frame(step=1:60000, crime_sim_1[[1]])
+crime_data_1 <- data.frame(step=1:70000, crime_sim_1[[1]])
 ```
 
 
 ### Parameter Interpretation
 
 ```{r}
-#running_mean_plot(crime_data_1$alpha)
-running_mean_plot(crime_data_1$beta)
-#running_mean_plot(crime_data_1$u.1.)
-running_mean_plot(crime_data_1$delta.1.)
+running_mean_plot(crime_data_1$u.3.)
+running_mean_plot(crime_data_1$p.1.1.)
+running_mean_plot(crime_data_1$delta.3.)
+```
+
+```{r}
+summary(crime_sim_1)
 ```
 
 There is a 73.4% probability that the crime rate in Chicago is positive. The 95% confidence interval of alpha is (-1.28, 1.517).
