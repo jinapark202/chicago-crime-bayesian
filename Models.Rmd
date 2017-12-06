@@ -172,40 +172,41 @@ $$\beta \sim N(0, 1000^2)$$
 - time[j]: the time in years
 
 ```{r, cache=TRUE}
+
+#Data
+Crime_count <- Model_Data %>%
+  group_by(Year) %>%
+  dplyr::summarise(total.stop = sum(total))
+head(Crime_count)
+
+
 #Specify the model
 crime_model_0 <- "model{
     #Data
-    for(i in 1:58) {
-      for(j in 1:8){
-        y[i,j] ~ dbin(p[i,j], n[i])
-        logit(p[i,j]) = alpha + beta * time[j]
-      }
+    for(j in 1:8){
+      y[j] ~ dbin(p[j], n)
+      logit(p[j]) = beta*time[j]
     }
     
     #Priors
-    alpha ~ dnorm(0, 1/10^2)
-    beta ~ dnorm(0, 1/10^2)
+    beta ~ dnorm(0, 1/100^2)
 
 }"
 
 #set up an algorithm to simulate the posterior by 
 #combining the model (nba_model) and data (y)
 #set the random number seed
-#crime_jags_0 <- jags.model(textConnection(crime_model_0), data=list(y=Crime_count, n=Population.vector, time=time),
-                    #inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
-crime_jags_0.1 <- jags.model(textConnection(crime_model_0), data=list(y=Crime_count, n=Population.vector, time=time),
-                    inits=list(alpha=-8, beta=-0.04))
+crime_jags_0 <- jags.model(textConnection(crime_model_0), data=list(y=Crime_count$total.stop, n=sum(Population.vector), time=Crime_count$Year),inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+#crime_jags_0 <- jags.model(textConnection(crime_model_0), data=list(y=Crime_count$total.stop, n=sum(Population.vector), #time=Crime_count$Year),inits=list(alpha=-8, beta=-0.04))
 
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-#crime_sim_0 <- coda.samples(crime_jags_0, variable.names=c("alpha", "beta"), n.iter=500000)
-crime_sim_0.1 <- coda.samples(crime_jags_0.1, variable.names=c("alpha", "beta"), n.iter=50000)
+crime_sim_0 <- coda.samples(crime_jags_0, variable.names=c("beta"), n.iter=50000)
 
 
 #store the samples in a data frame:    
-#crime_data_0 <- data.frame(step=1:500000, crime_sim_0[[1]])
-crime_data_0.1 <- data.frame(step=1:50000, crime_sim_0.1[[1]])
+crime_data_0 <- data.frame(step=1:50000, crime_sim_0[[1]])
 ```
 
 
@@ -236,27 +237,17 @@ head(Crime_rate_log)
 ```
 
 
-Initial condition for log crime rate over time
-```{r}
-summary(Crime_rate_log$crime_rate_log)
-summary(lm(crime_rate_log ~ year, data=Crime_rate_log %>% filter(!is.na(crime_rate_log) & crime_rate_log > -10) ))
-```
-
 Check if the MCMC converges:
 
 ```{r}
-running_mean_plot(crime_data_0.1$alpha)
-running_mean_plot(crime_data_0.1$beta)
+running_mean_plot(crime_data_0$beta)
 ```
 
 Parameter inferences
 
 ```{r}
-ggplot(crime_data_0, aes(x=alpha)) + geom_histogram(aes(y=..density..), colour="white")
 ggplot(crime_data_0, aes(x=beta)) + geom_histogram(aes(y=..density..), colour="white")
-mean(crime_data_0$alpha)
 mean(crime_data_0$beta)
-quantile(crime_data_0$alpha, c(0.025, 0.975))
 quantile(crime_data_0$beta, c(0.025, 0.975))
 ```
 
@@ -321,7 +312,16 @@ $$\delta_{i} \sim N(0, prec.delta)$$
 $$prec.u \sim Gamma(0.5, 0.0005)$$
 $$prec.delta \sim Gamma(0.5, 0.0005)$$
 
-```{r, cache=TRUE} 
+```{r, cache=TRUE}
+#Data
+Crime_count <- Model_Data %>%
+  select(Year, zip, total) %>%
+  spread(key=Year, value=total)
+rownames(Crime_count) <- Crime_count$zip 
+Crime_count <- Crime_count %>% select(-zip)
+Crime_count[is.na(Crime_count)] <- 0
+head(Crime_count)
+
 #Specify the model
 crime_model_1 <- "model{
     #Data
@@ -366,6 +366,13 @@ crime_data_1 <- data.frame(step=1:60000, crime_sim_1[[1]])
 
 
 ### Parameter Interpretation
+
+```{r}
+running_mean_plot(crime_data_1$alpha)
+running_mean_plot(crime_data_1$beta)
+running_mean_plot(crime_data_1$u.1.)
+running_mean_plot(crime_data_1$delta.1.)
+```
 
 There is a 73.4% probability that the crime rate in Chicago is positive. The 95% confidence interval of alpha is (-1.28, 1.517).
 
