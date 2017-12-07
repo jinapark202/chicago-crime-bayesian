@@ -131,13 +131,17 @@ Model_Data$area_poc <- recode(Model_Data$racegr, `3`=1, .default = 0)
 
 **Plot of $log(y_{ij}/n_{i})$ vs year**
 ```{r}
+Crime_count_log_calc <- log(Crime_count/Population.vector)
 
-Crime_count_log <- Model_Data %>%
-  mutate(log_rate = log(total/total_population)) %>%
-  select(zip, Year, log_rate)
+Crime_count_log <- Crime_count_log_calc %>%
+  rownames_to_column() %>%
+  gather(key=year, value=crime_count_log, -rowname) %>%
+  mutate(zip=rowname) %>%
+  select(zip, year, crime_count_log) %>%
+  mutate(year=as.numeric(year))
 head(Crime_count_log)
 
-ggplot(Crime_count_log, aes(x=Year, y=log_rate, colour=zip)) + geom_point() + geom_line() 
+ggplot(Crime_count_log, aes(x=year, y=crime_count_log, colour=zip)) + geom_point() + geom_line() 
 ```
 
 **Plot of $$log(y_{ij}/n_{i})$$ vs per capita income**
@@ -150,7 +154,7 @@ Model_Data_1 <- Model_Data %>%
 
 head(Model_Data_1)
 
-ggplot(Model_Data_1, aes(x=log(per_capita_income), y=log_rate, colour=percent_nonwhite)) + geom_point() + labs(x="Log of Per Capita Income", y="Log of Crime Rate", title="Relationship between Per Capita Income and Log of Crime Rate")
+ggplot(Model_Data_1, aes(x=log(per_capita_income), y=crime_count_log, colour=percent_nonwhite)) + geom_point() + labs(x="Log of Per Capita Income", y="Log of Crime Rate", title="Relationship between Per Capita Income and Log of Crime Rate")
 ```
 
 **Plot of $log(y_{ij}/n_{i})$ vs nonwhite percentage**
