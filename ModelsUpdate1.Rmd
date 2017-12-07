@@ -252,9 +252,16 @@ crime_model_0_CI <- matrix(nrow=9, ncol=2)
 for (i in 1:9) {
       crime_model_0_CI[i,] <- quantile(crime_data_0[[i]], c(0.025, 0.975))
 }
-rownames(crime_model_0_CI) <- names(crime_data_0)
-colnames(crime_model_0_CI) <- c("2.5%", "97.5%")
-as.table(crime_model_0_CI)
+
+crime_model_0_mean <- matrix(nrow=9, ncol=1)
+for (i in 1:9) {
+      crime_model_0_mean[i, ] <- mean(crime_data_0[[i]])
+}
+
+crime_model_0_table <- cbind(crime_model_0_CI, crime_model_0_mean)
+rownames(crime_model_0_table) <- names(crime_data_0)
+colnames(crime_model_0_table) <- c("2.5%", "97.5%", "Mean")
+as.table(crime_model_0_table)
 ```
 
 ## Model 1
@@ -349,15 +356,22 @@ It appears that beta, the time trend, is slightly negative. This suggests that t
 ggplot(crime_data_1, aes(x=beta)) + geom_histogram(aes(y=..density..), colour="white")
 ```
 
-### Confidence Intervals of Crime Model 0 parameters
+### Confidence Intervals and Posterior Mean of Crime Model 0 parameters
 ```{r}
-crime_model_1_delta_CI <- matrix(nrow=length(names(crime_data_1)), ncol=2)
+crime_model_1_CI <- matrix(nrow=length(names(crime_data_1)), ncol=2)
 for (i in 1:length(names(crime_data_1))) {
-      crime_model_1_delta_CI[i,] <- quantile(crime_data_1[[i]], c(0.025, 0.975))
+      crime_model_1_CI[i, ] <- quantile(crime_data_1[[i]], c(0.025, 0.975))
 }
-rownames(crime_model_1_delta_CI) <- names(crime_data_1)
-colnames(crime_model_1_delta_CI) <- c("2.5%", "97.5%")
-as.table(crime_model_1_delta_CI)
+
+crime_model_1_mean <- matrix(nrow=length(names(crime_data_1)), ncol=1)
+for (i in 1:length(names(crime_data_1))) {
+      crime_model_1_mean[i, ] <- mean(crime_data_1[[i]])
+}
+
+crime_model_1_table <- cbind(crime_model_1_CI, crime_model_1_mean)
+rownames(crime_model_1_table) <- names(crime_data_1)
+colnames(crime_model_1_table) <- c("2.5%", "97.5%", "Mean")
+as.table(crime_model_1_table)
 ```
 
 The 95% confidence interval for $\beta$ is (-0.004096, 0.0002897). Since $\beta$ is not considered signifant in the 5% level, we can proceed with Model 2 instead, in which the overall time trend is removed from the model.
