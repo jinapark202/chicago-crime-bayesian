@@ -236,17 +236,35 @@ crime_data_0 <- data.frame(crime_sim_0[[1]])
 ```
 
 ### Running Mean Plot
+
+The running mean plot shows that beta is stabilized at $n=40000$.
+
 ```{r}
 running_mean_plot(crime_data_0$beta)
 ```
 
 ### Parameter Inferences
 ```{r}
-ggplot(crime_data_0, aes(x=beta)) + geom_histogram(aes(y=..density..), colour="white")
-mean(crime_data_0$beta)
+ggplot(crime_data_0, aes(x=beta)) + geom_histogram(aes(y=..density..), colour="white") + labs(title="Posterior Distribution of the Effect of Time", x="Time Effect", y="Density")
+
+ggplot(crime_data_0, aes(x=p.1.)) + geom_histogram(aes(y=..density..), colour="white") + labs(title="Posterior Distribution of the Probability of Crime in 2010", x="Probability of Crime", y="Density")
+
+ggplot(crime_data_0, aes(x=p.2.)) + geom_histogram(aes(y=..density..), colour="white") + labs(title="Posterior Distribution of the Probability of Crime in 2011", x="Probability of Crime", y="Density")
+
+ggplot(crime_data_0, aes(x=p.3.)) + geom_histogram(aes(y=..density..), colour="white") + labs(title="Posterior Distribution of the Probability of Crime in 2012", x="Probability of Crime", y="Density")
+
+ggplot(crime_data_0, aes(x=p.4.)) + geom_histogram(aes(y=..density..), colour="white") + labs(title="Posterior Distribution of the Probability of Crime in 2013", x="Probability of Crime", y="Density")
+
+ggplot(crime_data_0, aes(x=p.5.)) + geom_histogram(aes(y=..density..), colour="white") + labs(title="Posterior Distribution of the Probability of Crime in 2014", x="Probability of Crime", y="Density")
+
+ggplot(crime_data_0, aes(x=p.6.)) + geom_histogram(aes(y=..density..), colour="white") + labs(title="Posterior Distribution of the Probability of Crime in 2015", x="Probability of Crime", y="Density")
+
+ggplot(crime_data_0, aes(x=p.7.)) + geom_histogram(aes(y=..density..), colour="white") + labs(title="Posterior Distribution of the Probability of Crime in 2016", x="Probability of Crime", y="Density")
+
+ggplot(crime_data_0, aes(x=p.8.)) + geom_histogram(aes(y=..density..), colour="white") + labs(title="Posterior Distribution of the Probability of Crime in 2017", x="Probability of Crime", y="Density")
 ```
 
-### Confidence Intervals of Crime Model 0 parameters
+### Confidence Intervals and Posterior Means of Crime Model 0 parameters
 ```{r}
 crime_model_0_CI <- matrix(nrow=9, ncol=2)
 for (i in 1:9) {
@@ -283,7 +301,7 @@ as.table(crime_model_0_table)
 ### Specify the Model
 We are modeling the count of crime incidents by year and zipcodes using a binomial distribution, in which the parameters are the probability of being a victim and the total population in location i and year j.
 
-We modeled the probability of being a victim using a logit function of the grand crime rate of Chicago and the inclusion of several random effects. It is also a function of time and its interaction with location.
+We modeled the probability of being a victim using a logit function of the grand crime rate of Chicago and time and its interaction with location.
 
 #### Data
 $$y_{ij} \sim Bin(p_{ij}, n_{i})$$
@@ -345,16 +363,12 @@ crime_data_1 <- data.frame(crime_sim_1[[1]])
 
 ### Parameter Interpretation
 
-```{r}
-ggplot(crime_data_1, aes(x=alpha)) + geom_histogram(aes(y=..density..), colour="white")
-sum(crime_data_1$alpha > 0)/40000
+```{r message=FALSE, warning=FALSE}
+ggplot(crime_data_1, aes(x=delta.1.)) + geom_histogram(aes(y=..density..), colour="white") + labs(title="Posterior Distribution of the Crime Differential Growth in 2010", x="Crime Differential Growth", y="Density")
+
+ggplot(crime_data_1, aes(x=p.1.1.)) + geom_histogram(aes(y=..density..), colour="white") + labs(title="Posterior Distribution of the Probability of Crime in 2010 in Zipcode 1", x="Probability of Crime", y="Density")
 ```
 
-It appears that beta, the time trend, is slightly negative. This suggests that the amount of crime in Chicago might be decreasing over time.
-
-```{r}
-ggplot(crime_data_1, aes(x=beta)) + geom_histogram(aes(y=..density..), colour="white")
-```
 
 ### Confidence Intervals and Posterior Mean of Crime Model 0 parameters
 ```{r}
