@@ -628,7 +628,7 @@ zip_choropleth(zip_median_age,
 
 #Police stops 2016-2017 visualization
 
-```{r}
+```
 Police.s <- read.csv("Police_stops_2016_2017_sample.csv")
 drug.count <- Police.s %>%
   group_by(ZIP_CD) %>%
