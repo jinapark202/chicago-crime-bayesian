@@ -1,0 +1,20 @@
+---
+title: "Codebook"
+author: "Jina Park, Phuc Nguyen"
+date: "12/10/2017"
+output: html_document
+---
+
+### Crime Data Variabless
+
+
+### Model 0 Variables
+
+### Model 1 Variables
+
+### Model 2 Variables
+
+### Model 3 Variables
+
+### Model 4 Variables
+
