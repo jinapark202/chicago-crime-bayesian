@@ -110,7 +110,7 @@ Hotspot_Crime <- inner_join(Hotspot_Crime, Demographics, by="zip")
 Model_Data <- Hotspot_Crime %>%
   select(-c(lat, long, order, piece, group, hole)) %>% distinct
 
-write.csv(Model_Data, file="police_models_data.csv")
+#write.csv(Model_Data, file="police_models_data.csv")
 ```
 
 #### Get populations by zipcode and year
@@ -261,11 +261,11 @@ Model_Data_1 <- Model_Data %>%
   filter(Year == 2010) %>%
   mutate(percent_nonwhite = 100 - percent_white) %>%
   select(zip, per_capita_income, percent_nonwhite) %>%
-  right_join(Crime_rate_log, by="zip") 
+  right_join(Crime_count_log, by="zip") 
 
 head(Model_Data_1)
 
-ggplot(Model_Data_1, aes(x=per_capita_income, y=crime_rate_log, colour=percent_nonwhite)) + geom_point() + labs(x="Per Capita Income", y="Log of Crime Rate", title="Relationship between Per Capita Income and Log of Crime Rate")
+ggplot(Model_Data_1, aes(x=per_capita_income, y=crime_count_log)) + geom_point() + labs(x="Per Capita Income", y="Log of Crime Rate", title="Relationship between Per Capita Income and Log of Crime Rate")
 ```
 
 ## Plot log(y_(ij)/n_i) over ethnic group
@@ -338,7 +338,7 @@ crime_model_1 <- "model{
     for(i in 1:58) {
       for(j in 1:6){
         y[i,j] ~ dbin(p[i,j], n[i])
-        logit(p[i,j]) = delta[i]*time[j]
+        logit(p[i,j]) = delta[i]*time[j] + u[i]
       }
     }
     
@@ -347,12 +347,12 @@ crime_model_1 <- "model{
     #beta ~ dnorm(0, 1/100^2)
 
     for(i in 1:58){
-      #u[i] ~ dnorm(0, prec.u)
+      u[i] ~ dnorm(0, prec.u)
       delta[i] ~ dnorm(0, prec.delta)
     }
 
     #Hyperpriors
-    #prec.u ~ dgamma(0.5, 0.0005)
+    prec.u ~ dgamma(0.5, 0.0005)
     prec.delta ~ dgamma(0.5, 0.0005)
     
 }"
@@ -366,22 +366,25 @@ crime_jags_1 <- jags.model(textConnection(crime_model_1), data=list(y=Crime_coun
 
  #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("p", "delta"), n.iter=40000)
+crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("p", "delta", "u"), n.iter=70000)
 
 
 #store the samples in a data frame:    
-crime_data_1 <- data.frame(step=1:40000, crime_sim_1[[1]])
+crime_data_1 <- data.frame(step=1:70000, crime_sim_1[[1]])
 ```
 
 
 ### Parameter Interpretation
 
 ```{r}
-#running_mean_plot(crime_data_1$alpha)
+running_mean_plot(crime_data_1$u.3.)
 running_mean_plot(crime_data_1$p.1.1.)
 running_mean_plot(crime_data_1$delta.3.)
 ```
 
+```{r}
+summary(crime_sim_1)
+```
 
 There is a 73.4% probability that the crime rate in Chicago is positive. The 95% confidence interval of alpha is (-1.28, 1.517).
 
@@ -650,71 +653,49 @@ $$prec.sigma \sim Gamma(0.5, 0.0005)$$
 
 
 ```{r, cache=TRUE}
-Crime_count <- Model_Data %>%
-  select(Year, zip, total) %>%
-  spread(key=Year, value=total)
-rownames(Crime_count) <- Crime_count$zip 
-Crime_count <- Crime_count %>% select(-zip)
-Crime_count[is.na(Crime_count)] <- 0
-head(Crime_count)
-
-Population <- Model_Data %>%
-  select(total_population, zip, Year)
-head(Population)
-
-income <- Model_Data %>%
-  select(per_capita_income, Year,zip)
-head(income)
-  
 #Specify the model
 crime_model_3 <- "model{
     #Data
     for(i in 1:58) {
-      for(j in 1:6){
+      for(j in 1:8){
         y[i,j] ~ dbin(p[i,j], n[i])
-        logit(p[i,j]) = delta*time[j] + sigma*income[i]
+        logit(p[i,j]) = alpha + u[i] + delta[i] * time[j] + sigma[i] * income[i]
       }
     }
     
     #Priors
-    sigma ~ dnorm(0, 1/1000^2)
-    delta ~ dnorm(0, 1/1000^2)
+    alpha ~ dnorm(0, 1/1000^2)
+    beta ~ dnorm(0, 1/1000^2)
+    
+    for(i in 1:58){
+      u[i] ~ dnorm(0, prec.u)
+      delta[i] ~ dnorm(0, prec.delta)
+      sigma[i] ~ dnorm(0, prec.sigma)
+    }
+
+    #Hyperpriors
+    prec.u ~ dgamma(0.5, 0.0005)
+    prec.delta ~ dgamma(0.5, 0.0005)
+    prec.sigma ~ dgamma(0.5, 0.0005)
     
 }"
 
 #set up an algorithm to simulate the posterior by 
 #combining the model (nba_model) and data (y)
 #set the random number seed
-crime_jags_3 <- jags.model(textConnection(crime_model_3), data=list(y=Crime_count, 
-                                                                    n=Population$total_population, 
-                                                                    time=time, 
-                                                                    income=income$per_capita_income),
+crime_jags_3 <- jags.model(textConnection(crime_model_3), data=list(y=Crime_count, n=Population.vector, time=time, income=Model_Data$per_capita_income),
                     inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
 
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim_3 <- coda.samples(crime_jags_3, variable.names=c("p", "delta", "sigma"), n.iter=30000)
+crime_sim_3 <- coda.samples(crime_jags_3, variable.names=c("p", "u", "delta", "alpha", "sigma"), n.iter=40000)
 
 
 #store the samples in a data frame:    
-crime_data_3 <- data.frame(step=1:30000, crime_sim_3[[1]])
-
+crime_data_3 <- data.frame(step=1:40000, crime_sim_3[[1]])
 ```
 
-## Check for convergence
-
-```{r}
-running_mean_plot(crime_data_3$p.1.6.)
-running_mean_plot(crime_data_3$p.1.1.)
-running_mean_plot(crime_data_3$sigma)
-running_mean_plot(crime_data_3$delta)
-```
-
-```{r}
-ggplot(crime_data_3, aes(x=sigma)) + geom_histogram(aes(y=..density..), colour="white")
-ggplot(crime_data_3, aes(x=delta)) + geom_histogram(aes(y=..density..), colour="white")
-```
 
 ## Crime Model 2 Visualizations
 ```{r}
@@ -905,74 +886,50 @@ $$\rho_{i} \sim N(0, 0.01)$$
 $$prec.u \sim Gamma(0.5, 0.0005)$$
 $$prec.delta \sim Gamma(0.5, 0.0005)$$
 $$prec.sigma \sim Gamma(0.5, 0.0005)$$
-Since in the log crime rate income plot, we saw that there might be two trends, one where log crime rate goes down as income increases in areas with high percentage of people of color, the other where log crime rate goes up as income increases in predominantly white areas
 
 ```{r, cache=TRUE}
-#Data
-
-Crime_count <- Model_Data %>%
-  mutate(percent_nonwhite = 100 - percent_white) %>%
-  select(zip, Year, total, percent_nonwhite, per_capita_income, total_population) 
-Crime_count[is.na(Crime_count$total)] <- 0
-head(Crime_count)
-
-time <- sort(unique(Model_Data$Year))
-
 #Specify the model
-crime_model_3 <- "model{
+crime_model_4 <- "model{
     #Data
-    for(i in 1:19) {
-      for(j in 1:6){
+    for(i in 1:58) {
+      for(j in 1:8){
         y[i,j] ~ dbin(p[i,j], n[i])
-        logit(p[i,j]) = delta*time[j] + sigma*income[i]
+        logit(p[i,j]) = alpha + u[i] + delta[i] * time[j] + sigma[i]*income[i] + rho[i]*percent_nonwhite[i]
       }
     }
     
     #Priors
-    delta ~ dnorm(0, 1/1000^2)
-    sigma ~ dnorm(0, 1/1000^2)
+    alpha ~ dnorm(0, 1/1000^2)
+    beta ~ dnorm(0, 1/1000^2)
+
+    for(i in 1:58){
+      u[i] ~ dnorm(0, prec.u)
+      delta[i] ~ dnorm(0, prec.delta)
+      sigma[i] ~ dnorm(0, prec.sigma)
+      rho[i] ~ dnorm(0, 0.01)
+    }
+
+    #Hyperpriors
+    prec.u ~ dgamma(0.5, 0.0005)
+    prec.delta ~ dgamma(0.5, 0.0005)
+    prec.sigma ~ dgamma(0.5, 0.0005)
     
 }"
 
 #set up an algorithm to simulate the posterior by 
 #combining the model (nba_model) and data (y)
 #set the random number seed
-#quantile(Crime_count$percent_nonwhite, c(0.33, 0.66)) >> 41.00, 81.66
-#66% or more nonwhite
-crime_jags_3.1 <- jags.model(textConnection(crime_model_3), data=list(y=Crime_count %>% filter(percent_nonwhite > 81.66) %>% select(-percent_nonwhite), 
-                                                                      n=Population$total_population, 
-                                                                      time=time, 
-                                                                      income=Model_Data$per_capita_income),
-                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
-#33%-66% nonwhite
-crime_jags_3.2 <- jags.model(textConnection(crime_model_3), data=list(y=Crime_count %>% filter(percent_nonwhite > 41 & percent_nonwhite <= 81.66) %>% select(-percent_nonwhite), 
-                                                                      n=Population$total_population, 
-                                                                      time=time, 
-                                                                      income=Model_Data$per_capita_income),
-                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
-#less than 33% nonwhite
-crime_jags_3.1 <- jags.model(textConnection(crime_model_4), data=list(y=Crime_count, n=Population.vector, time=time, income=Model_Data$per_capita_income, percent_nonwhite=percent_nonwhite),
+crime_jags_4 <- jags.model(textConnection(crime_model_4), data=list(y=Crime_count, n=Population.vector, time=time, income=Model_Data$per_capita_income, percent_nonwhite=percent_nonwhite),
                     inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
 
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim_3.1 <- coda.samples(crime_jags_4, variable.names=c("p", "delta", "sigma", "rho"), n.iter=40000)
-crime_sim_3.1 <- coda.samples(crime_jags_4, variable.names=c("p", "delta", "sigma", "rho"), n.iter=40000)
+crime_sim_4 <- coda.samples(crime_jags_4, variable.names=c("p", "u", "delta", "alpha", "sigma", "rho"), n.iter=40000)
 
 
 #store the samples in a data frame:    
 crime_data_4 <- data.frame(step=1:40000, crime_sim_4[[1]])
-```
-
-
-## Check for convergence
-
-```{r}
-running_mean_plot(crime_data_4$p.1.1)
-running_mean_plot(crime_data_4$sigma)
-running_mean_plot(crime_data_4$delta)
-running_mean_plot(crime_data_4$rho)
 ```
 
 
