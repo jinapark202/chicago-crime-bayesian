@@ -147,7 +147,7 @@ percent_nonwhite <- 100 - Model_Data$percent_white
 # Research Question 1
 
 **Plot of $log(y_{ij}/n_{i})$ vs year**
-```{r}
+```{r, cache=TRUE}
 Crime_count_log_calc <- log(Crime_count/Population.vector)
 
 Crime_count_log <- Crime_count_log_calc %>%
@@ -158,7 +158,7 @@ Crime_count_log <- Crime_count_log_calc %>%
   mutate(year=as.numeric(year))
 head(Crime_count_log)
 
-ggplot(Crime_count_log, aes(x=year, y=crime_count_log, colour=zip)) + geom_point() + geom_line() 
+ggplot(Crime_count_log, aes(x=year, y=crime_count_log, colour=zip)) + geom_point() + geom_line() + labs(title="Crime Rate Over Time", y="Log of Crime Rate", x="Year", color="Zipcodes")
 ```
 
 **Plot of $log(y_{ij}/n_{i})$ vs per capita income**
@@ -170,7 +170,7 @@ Model_Data_1 <- Model_Data %>%
   right_join(Crime_count_log, by="zip") 
 head(Model_Data_1)
 
-ggplot(Model_Data_1, aes(x=log(per_capita_income), y=crime_count_log, colour=percent_nonwhite)) + geom_point() + labs(x="Log of Per Capita Income", y="Log of Crime Rate", title="Relationship between Per Capita Income and Log of Crime Rate")
+ggplot(Model_Data_1, aes(x=log(per_capita_income), y=crime_count_log, colour=percent_nonwhite)) + geom_point() + labs(x="Log of Per Capita Income", y="Log of Crime Rate", title="Relationship between Per Capita Income and Crime Rate", color="Nonwhite Percentage") 
 ```
 
 **Plot of $log(y_{ij}/n_{i})$ vs nonwhite percentage**
@@ -303,13 +303,16 @@ We modeled the probability of being a victim using a logit function of the grand
 
 #### Data
 $$y_{ij} \sim Bin(p_{ij}, n_{i})$$
-$$logit(p_{ij}) = \delta_{i} * time_{j}$$
+$$logit(p_{ij}) = \beta_{i} + \delta_{i} * time_{j}$$
 
 #### Priors
-$$\delta_{i} \sim N(0, prec.delta)$$
+$$\beta_{i} \sim N(0, \tau_{0})$$
+$$\delta_{i} \sim N(0, \tau_{1})$$
 
 #### Hyperpriors
-$$prec.delta \sim Gamma(0.5, 0.0005)$$
+$$\tau_0 \sim Gamma(-0.005, 0.0005)$$
+
+$$\tau_1 \sim Gamma(0.5, 0.0005)$$
 
 ```{r, cache=TRUE}
 #Data
@@ -329,17 +332,19 @@ crime_model_1 <- "model{
     for(i in 1:58) {
       for(j in 1:8){
         y[i,j] ~ dbin(p[i,j], n[i])
-        logit(p[i,j]) = delta[i]*time[j]
+        logit(p[i,j]) = beta[i] + delta[i]*time[j]
       }
     }
     
     #Priors
     for(i in 1:58){
-      delta[i] ~ dnorm(0, prec.delta)
+      delta[i] ~ dnorm(-0.005, tau1)
+      beta[i] ~ dnorm(0, tau0)
     }
 
     #Hyperpriors
-    prec.delta ~ dgamma(0.5, 0.0005)
+    tau0 ~ dgamma(0.005, 0.0005)
+    tau1 ~ dgamma(0.5, 0.0005)
     
 }"
 
@@ -352,11 +357,18 @@ crime_jags_1 <- jags.model(textConnection(crime_model_1), data=list(y=Crime_coun
 
  #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("p", "delta"), n.iter=60000)
+crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("p", "delta", "beta", "tau0", "tau1"), n.iter=30000)
 
 
 #store the samples in a data frame:    
 crime_data_1 <- data.frame(crime_sim_1[[1]])
+```
+
+```{r}
+running_mean_plot(crime_data_1$delta.1.)
+running_mean_plot(crime_data_1$beta.1.)
+running_mean_plot(crime_data_1$tau0)
+running_mean_plot(crime_data_1$tau1)
 ```
 
 ### Parameter Interpretation
@@ -400,6 +412,7 @@ crime_viz_1 <- crime_data_1 %>%
   mutate(zipcode = as.integer(gsub("\\D", "", zipcode))) %>%
   left_join(zip_data, by="zipcode") %>%
   mutate(id=as.character(zip))
+crime_viz_1
 ```
 
 ### Map of Crime Differential Growth by Zipcode (Using Model 1)
@@ -407,6 +420,7 @@ crime_viz_1 <- crime_data_1 %>%
 zip <- readOGR(dsn="Boundaries - ZIP Codes", layer="geo_export_e1262361-5c82-45ee-8427-ef228e06dc4a")
 zip_df <- fortify(zip, region = "zip")
 crime_model_1_delta <- left_join(zip_df, crime_viz_1, by="id")
+
 head(crime_model_1_delta)
 
 model_1_map <- ggplot() 
@@ -415,6 +429,15 @@ model_1_map <- model_1_map + coord_map()
 model_1_map <- model_1_map + labs(x="", y="", title=paste("Crime Differential Growth by Zipcode"), fill="total")
 model_1_map <- model_1_map + cleanup
 print(model_1_map)
+```
+
+### Variability of the Crime Differential Growth
+```{r}
+sqrt(1/mean(crime_data_1$tau1))
+```
+
+```{r}
+ggplot(crime_model_1_delta, aes(x=delta)) + geom_histogram(colour="white") + labs(x="Crime Differential Growth", y="Count", title="Histogram of Crime Differential Growth")
 ```
 
 ------------------------------------------------------------------------------
@@ -444,17 +467,18 @@ print(model_1_map)
 This model resembles Model 2 but now our prediction of the crime rate accounts for the different income levels in various Chicago zipcodes.
 
 #### Data
+
 $$y_{ij} \sim Bin(p_{ij}, n_{i})$$
-$$logit(p_{ij}) = \delta_{i} * time_{j} + \sigma_{i} * income_{i}$$
+$$logit(p_{ij}) = \beta_{i} + \delta_{i} * time_{j} + \sigma * income_{i}$$
 
 #### Priors
-$$\delta_{i} \sim N(0, prec.delta)$$
-$$\sigma_{i} \sim N(0, prec.sigma)$$
+$$\delta_{i} \sim N(0, \tau_{1})$$
+$$\sigma_{i} \sim N(0, \tau_{2})$$
 
 #### Hyperprior
-$$prec.u \sim Gamma(0.5, 0.0005)$$
-$$prec.delta \sim Gamma(0.5, 0.0005)$$
-$$prec.sigma \sim Gamma(0.5, 0.0005)$$
+$$\tau_{0} \sim Gamma(0.5, 0.0005)$$
+$$\tau_{1} \sim Gamma(0.5, 0.0005)$$
+$$\tau_{2} \sim Gamma(0.5, 0.0005)$$
 
 ```{r, cache=TRUE, message=FALSE, warning=FALSE}
 #Specify the model
@@ -463,19 +487,21 @@ crime_model_3 <- "model{
     for(i in 1:58) {
       for(j in 1:8){
         y[i,j] ~ dbin(p[i,j], n[i])
-        logit(p[i,j]) = delta[i] * time[j] + sigma[i] * income[i]
+        logit(p[i,j]) = beta[i] + delta[i] * time[j] + sigma * income[i]
       }
     }
     
     #Priors
+    sigma ~ dnorm(-0.005, tau2)
     for(i in 1:58){
-      delta[i] ~ dnorm(0, prec.delta)
-      sigma[i] ~ dnorm(0, prec.sigma)
+      beta[i] ~ dnorm(0, tau0)
+      delta[i] ~ dnorm(-0.005, tau1)
     }
 
     #Hyperpriors
-    prec.delta ~ dgamma(0.5, 0.0005)
-    prec.sigma ~ dgamma(0.5, 0.0005)
+    tau0 ~ dgamma(0.05, 0.0005)
+    tau1 ~ dgamma(0.05, 0.0005)
+    tau2 ~ dgamma(0.05, 0.0005)
     
 }"
 
@@ -488,7 +514,7 @@ crime_jags_3 <- jags.model(textConnection(crime_model_3), data=list(y=Crime_coun
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim_3 <- coda.samples(crime_jags_3, variable.names=c("p", "delta", "sigma"), n.iter=40000)
+crime_sim_3 <- coda.samples(crime_jags_3, variable.names=c("p", "delta", "sigma", "beta", "tau0", "tau2", "tau1"), n.iter=60000)
 
 
 #store the samples in a data frame:    
@@ -552,9 +578,10 @@ The running mean of $\alpha$ appears to stabilize after 40,000 iterations.
 
 ```{r}
 running_mean_plot(crime_data_3$delta.1.)
-running_mean_plot(crime_data_3$delta.3.)
-running_mean_plot(crime_data_3$sigma.1.)
-running_mean_plot(crime_data_3$sigma.3.)
+running_mean_plot(crime_data_3$sigma)
+running_mean_plot(crime_data_3$beta.1.)
+running_mean_plot(crime_data_3$tau1)
+running_mean_plot(crime_data_3$tau2)
 ```
 
 ---------------------------------------------------------------
@@ -572,12 +599,6 @@ running_mean_plot(crime_data_3$sigma.3.)
 
 - n[i, j]: the population in zipcode i in time j.
 
-- $\alpha$: the mean crime rate
-
-- u[i]: the unstructured spatial random effect for each zipcode in Chicago.
-
-- s[i]: the structured spatial random effect for each zipcode in Chicago.
-
 - time[j]: the time in years
 
 - $\delta$[i]: the spatial temporal interaction term
@@ -586,7 +607,7 @@ running_mean_plot(crime_data_3$sigma.3.)
 
 - income[i]: income for each zipcode in Chicago
 
-- e[i]: the weight in the relationship between crime rate and percentage of nonewhite people in Chicago
+- $\rho$[i]: the weight in the relationship between crime rate and percentage of nonewhite people in Chicago
 
 - percent_nonwhite[i]: the percentage of nonwhite people in zipcode i.
 
@@ -595,20 +616,18 @@ This model resembles Model 3 but now our prediction of the crime rate accounts f
 
 #### Data
 $$y_{ij} \sim Bin(p_{ij}, n_{i})$$
-$$logit(p_{ij}) = \alpha + u_{i} + \delta_{i} * time_{j} + \sigma_{i} * income_{i} + \rho_{i} * percentNonwhite_{i}$$
+$$logit(p_{ij}) =  \delta_{i} * time_{j} + \sigma_{i} * income_{i} + \rho_{i} * percentNonwhite_{i}$$
 
 #### Priors
-$$\alpha \sim N(0, 1000^2)$$
-$$\beta \sim N(0, 1000^2)$$
-$$u_{i} \sim N(0, prec.u)$$
-$$\delta_{i} \sim N(0, prec.delta)$$
-$$\sigma_{i} \sim N(0, prec.sigma)$$
+$$\delta_{i} \sim N(0, \tau_{1})$$
+$$\sigma_{i} \sim N(0, tau_{2})$$
 $$\rho_{i} \sim N(0, 0.01)$$
 
 #### Hyperprior
-$$prec.u \sim Gamma(0.5, 0.0005)$$
-$$prec.delta \sim Gamma(0.5, 0.0005)$$
-$$prec.sigma \sim Gamma(0.5, 0.0005)$$
+$$\tau_{1} \sim Gamma(0.5, 0.0005)$$
+$$\tau_{2} \sim Gamma(0.5, 0.0005)$$
+$$\tau_{3} \sim Gamma(0.5, 0.0005)$$
+
 
 ```{r, cache=TRUE, message=FALSE, warning=FALSE}
 #Specify the model
@@ -617,33 +636,35 @@ crime_model_4 <- "model{
     for(i in 1:58) {
       for(j in 1:8){
         y[i,j] ~ dbin(p[i,j], n[i])
-        logit(p[i,j]) = delta[i] * time[j] + sigma[i]*income[i] + rho[i]*percent_nonwhite[i]
+        logit(p[i,j]) = delta[i] * time[j] + sigma[i]*income[i] + rho[i]*percent_nonwhite[i] + gamma[i]*income[i]*percent_nonwhite[i]
       }
     }
     
     #Priors
     for(i in 1:58){
-      delta[i] ~ dnorm(0, prec.delta)
-      sigma[i] ~ dnorm(0, prec.sigma)
+      delta[i] ~ dnorm(-0.005, tau1)
+      sigma[i] ~ dnorm(0, tau2)
       rho[i] ~ dnorm(0, 0.01)
+      gamma[i] ~ dnorm(0, tau3)
     }
 
     #Hyperpriors
-    prec.delta ~ dgamma(0.5, 0.0005)
-    prec.sigma ~ dgamma(0.5, 0.0005)
+    tau1 ~ dgamma(0.005, 0.005)
+    tau2 ~ dgamma(0.005, 0.005)
+    tau3 ~ dgamma(0.005, 0.005)
     
 }"
 
 #set up an algorithm to simulate the posterior by 
 #combining the model (nba_model) and data (y)
 #set the random number seed
-crime_jags_4 <- jags.model(textConnection(crime_model_4), data=list(y=Crime_count, n=Population.vector, time=time, income=Model_Data$per_capita_income, percent_nonwhite=100 - Model_Data$percent_white),
+crime_jags_4 <- jags.model(textConnection(crime_model_4), data=list(y=Crime_count, n=Population.vector, time=time, income=Model_Data$per_capita_income, percent_nonwhite=percent_nonwhite),
                     inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
 
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim_4 <- coda.samples(crime_jags_4, variable.names=c("p", "delta", "sigma", "rho"), n.iter=40000)
+crime_sim_4 <- coda.samples(crime_jags_4, variable.names=c("p", "delta", "sigma", "rho", "tau1", "tau2", "tau3"), n.iter=60000)
 
 #store the samples in a data frame:    
 crime_data_4 <- data.frame(crime_sim_4[[1]])
@@ -884,10 +905,10 @@ police_model_0 <- "model{
   }
 
   #Priors
-  mu ~ dnorm(0, 1.0E-06)
+  mu ~ dnorm(0.005, 0.0005)
 
   for (i in 1:4){
-    alpha[i] ~ dnorm(0, 0.005)
+    alpha[i] ~ dnorm(-0.005, 0.0005)
   }
 }"
 
@@ -899,10 +920,15 @@ police_jags_0 <- jags.model(textConnection(police_model_0), data=list(y=Arrests,
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-police_sim_0 <- coda.samples(police_jags_0, variable.names=c("mu", "alpha"), n.iter=40000)
+police_sim_0 <- coda.samples(police_jags_0, variable.names=c("mu", "alpha"), n.iter=60000)
 
 #store the samples in a data frame:    
 police_data_0 <- data.frame(police_sim_0[[1]])
+```
+
+```{r}
+running_mean_plot(police_data_0$mu)
+running_mean_plot(police_data_0$alpha.1.)
 ```
 
 
@@ -970,24 +996,24 @@ police_model_1 <- "model{
 
   #Priors
 
-  mu ~ dnorm(0,1.0E-06)
+  mu ~ dnorm(0, 0.000001)
 
   for (i in 1:4){
     alpha[i] ~ dnorm(0, 0.005)
   }
 
   for (j in 1:58){
-    beta[j] ~ dnorm(0, 1/b^2)
+    beta[j] ~ dnorm(-0.005, tau0)
   }
 
   for (i in 1:4){
     for (j in 1:58){
-      epsilon[i,j] ~ dnorm(0, 1/e^2)
+      epsilon[i,j] ~ dnorm(0, tau1)
     }
   }
 
-  b ~ dgamma(0.5, 0.0005)
-  e ~ dgamma(0.5, 0.0005)
+  tau0 ~ dgamma(0.5, 0.0055)
+  tau1 ~ dgamma(0.5, 0.0055)
   
 }"
 
@@ -999,7 +1025,7 @@ police_jags_1 <- jags.model(textConnection(police_model_1), data=list(y=Arrests,
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-police_sim_1 <- coda.samples(police_jags_1, variable.names=c("mu", "alpha", "beta", "sd_beta", "sd_epsilon", "epsilon"), n.iter=40000)
+police_sim_1 <- coda.samples(police_jags_1, variable.names=c("mu", "alpha", "beta", "sd_beta", "sd_epsilon", "epsilon"), n.iter=60000)
 
 #store the samples in a data frame:    
 police_data_1 <- data.frame(police_sim_1[[1]])
