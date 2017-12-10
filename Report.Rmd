@@ -1,10 +1,9 @@
 ---
-title: "Bayesian Report - Replace with title"
+title: "Report"
 author: "Jina Park, Phuc Nguyen"
-date: "12/6/2017"
+date: "12/7/2017"
 output: html_document
 ---
-
 
 ### Motivation
 
@@ -18,8 +17,8 @@ Traffic stops and subsequent deaths of Sandra Bland raise growing concerns that 
 
 ### Bibliography
 
-- Gelman, Andrew, et al. “An Analysis of the New York City Police Department's "Stop-and-Frisk" Policy in the Context of Claims of Racial Bias.” Journal of the American Statistical Association, vol. 102, no. 479, 2007, pp. 813–823.
+Gelman, Andrew, et al. “An Analysis of the New York City Police Department's "Stop-and-Frisk" Policy in the Context of Claims of Racial Bias.” Journal of the American Statistical Association, vol. 102, no. 479, 2007, pp. 813–823.
 
-- Law, Jane, et al. “Analyzing Hotspots of Crime Using a Bayesian Spatiotemporal Modeling Approach: A Case Study of Violent Crime in the Greater Toronto Area.” Geographical Analysis, vol. 47, no. 1, Oct. 2014, pp. 1–19.
+Law, Jane, et al. “Analyzing Hotspots of Crime Using a Bayesian Spatiotemporal Modeling Approach: A Case Study of Violent Crime in the Greater Toronto Area.” Geographical Analysis, vol. 47, no. 1, Oct. 2014, pp. 1–19.
 
 ### Appendix and supplementary material
