@@ -5,18 +5,6 @@ date: "12/5/2017"
 output: html_document
 ---
 
-### Progress Made
-
-- Made maps and graphs of our models
-
-- Altered our models to get them to converge.
-
-### Group Roles
-
-- We worked together to make the maps/graphs and fixed the models.
-
------------------------------------------------------------
-
 ### Research Question 1
 
 - Predicting hotspots of specific crimes and how they changed over time and space.
@@ -113,18 +101,10 @@ Demographics <- df_zip_demographics %>% mutate(zip = region)
 Hotspot_Crime <- inner_join(Hotspot_Crime, Demographics, by="zip") 
 Model_Data <- Hotspot_Crime %>%
   select(-c(lat, long, order, piece, group, hole)) %>% distinct
-
-#write.csv(Model_Data, "Crime_models_data.csv")
-```
-
-### Load Data:
-```{r}
-Model_Data = read.csv("Crime_models_data.csv")
 ```
 
 
 #### Matrix data: crime counts, populations by zipcode and year
-
 
 #### Nested data: crime counts, population, standardized year 
 ```{r}
@@ -135,7 +115,13 @@ Model_Data$racegr <- ifelse(Model_Data$percent_white >80, 1,
                             ifelse(Model_Data$percent_white <=60 & Model_Data$percent_white > 40,3,
                             ifelse(Model_Data$percent_white <=40 & Model_Data$percent_white > 20,4, 5)))) 
 Model_Data$income = scale(Model_Data$per_capita_income)[,1]
-Model_Data
+
+write.csv(Model_Data, "Crime_models_data.csv")
+```
+
+### Load Data:
+```{r}
+Model_Data = read.csv("Crime_models_data.csv")
 ```
 
 
@@ -264,7 +250,7 @@ for (i in 1:2) {
 crime_model_0_table <- cbind(crime_model_0_CI, crime_model_0_mean)
 rownames(crime_model_0_table) <- names(crime_data_0)
 colnames(crime_model_0_table) <- c("2.5%", "97.5%", "Mean")
-as.table(crime_model_0_table)
+# as.table(crime_model_0_table)
 ```
 
 ## Model 1
@@ -385,7 +371,7 @@ for (i in 1:n) {
 crime_model_1_table <- cbind(crime_model_1_CI, crime_model_1_mean)
 rownames(crime_model_1_table) <- names(crime_data_1)[59:116]
 colnames(crime_model_1_table) <- c("2.5%", "97.5%", "Mean")
-as.table(crime_model_1_table)
+# as.table(crime_model_1_table)
 ```
 
 The 95% confidence interval for $\beta$ is (-0.004096, 0.0002897). Since $\beta$ is not considered signifant in the 5% level, we can proceed with Model 2 instead, in which the overall time trend is removed from the model.
@@ -393,10 +379,10 @@ The 95% confidence interval for $\beta$ is (-0.004096, 0.0002897). Since $\beta$
 ## Crime Model 1 Visualizations
 
 ### Map of Crime Differential Growth by Zipcode (Using Model 1)
-```{r}
+```{r, cache=TRUE}
 zip <- readOGR(dsn="Boundaries - ZIP Codes", layer="geo_export_e1262361-5c82-45ee-8427-ef228e06dc4a")
 zip_df <- fortify(zip, region = "zip")
-crime_model_1_delta <- left_join(zip_df, data.frame(id=unique(Model_Data$zip), delta=crime_model_1_mean), by='id')
+crime_model_1_delta <- left_join(zip_df, data.frame(id=as.character(unique(Model_Data$zip)), delta=crime_model_1_mean), by='id')
 head(crime_model_1_delta)
 
 model_1_map <- ggplot() 
@@ -409,10 +395,10 @@ print(model_1_map)
 
 ### Variability of the Crime Differential Growth
 ```{r}
-sqrt(1/mean(crime_data_1$tau1))
+sqrt(1/mean(crime_data_1$tau_1))
 ```
 
-```{r}
+```{r, cache=TRUE}
 ggplot(crime_model_1_delta, aes(x=delta)) + geom_histogram(colour="white") + labs(x="Crime Differential Growth", y="Count", title="Histogram of Crime Differential Growth")
 ```
 
@@ -509,6 +495,7 @@ running_mean_plot(crime_data_3$tau_1)
 
 ```{r}
 posterior_means <- crime_data_3 %>% colMeans()
+posterior_means
 crime_model_3_sigma <- Model_Data
 crime_model_3_sigma$beta <- recode(crime_model_3_sigma$racegr, `1`=posterior_means[1],
                                    `2`=posterior_means[2],
@@ -523,18 +510,19 @@ crime_model_3_sigma$sigma <- recode(crime_model_3_sigma$racegr, `1`=posterior_me
 crime_model_3_sigma <- crime_model_3_sigma %>%
   mutate(id = as.character(zip)) %>%
   right_join(zip_df, by="id")
-crime_model_3_sigma
 ```
 
 
 ### Income Differential Growth by Zipcode (Using Model 3)
-```{r}
+```{r, cache=TRUE}
 model_3_map <- ggplot() 
 model_3_map <- model_3_map +  geom_polygon(data = crime_model_3_sigma, aes(x=long, y=lat, group=group, fill=sigma), color = "black", size=0.2) 
 model_3_map <- model_3_map + coord_map() 
-model_3_map <- model_3_map + labs(x="", y="", title=paste("Crime Differential Growth based on Income and Demographics"), fill="total")
+model_3_map <- model_3_map + labs(x="", y="", title=paste("Crime Differential Growth Based on Income and Demographics"), fill="total")
 model_3_map <- model_3_map + cleanup
 print(model_3_map)
+
+posterior_means
 #Five groups, 20% increase in percent white. Darkest blue is the areas with 20% or lower of population white.
 #See Posterior means
 ```
@@ -544,14 +532,6 @@ In locations where the income differential growth increases, the crime different
 ### Running mean plot of alpha
 
 The running mean of $\alpha$ appears to stabilize after 40,000 iterations.
-
-```{r}
-running_mean_plot(crime_data_3$delta.1.)
-running_mean_plot(crime_data_3$sigma)
-running_mean_plot(crime_data_3$beta.1.)
-running_mean_plot(crime_data_3$tau1)
-running_mean_plot(crime_data_3$tau2)
-```
 
 ---------------------------------------------------------------
 
@@ -598,7 +578,7 @@ $$\tau_{2} \sim Gamma(0.5, 0.0005)$$
 $$\tau_{3} \sim Gamma(0.5, 0.0005)$$
 
 
-```{r, cache=TRUE, message=FALSE, warning=FALSE}
+{r, cache=TRUE, message=FALSE, warning=FALSE}
 #Specify the model
 crime_model_4 <- "model{
     #Data
@@ -640,14 +620,14 @@ crime_data_4 <- data.frame(crime_sim_4[[1]])
 ```
 
 ### Running Mean Plots
-```{r}
+{r}
 running_mean_plot(crime_data_4$delta.4.)
 running_mean_plot(crime_data_4$sigma.4.)
 running_mean_plot(crime_data_4$rho.4.)
 ```
 
 ### Crime Model 4 Visualizations
-```{r}
+{r}
 crime_viz_4_delta <- crime_data_4 %>%
   colMeans() %>%
   as.data.frame() %>%
@@ -661,7 +641,7 @@ crime_model_4_delta <- left_join(zip_df, crime_viz_4_delta, by="id")
 head(crime_model_4_delta)
 ```
 
-```{r}
+{r}
 crime_viz_4_sigma <- crime_data_4 %>%
   colMeans() %>%
   as.data.frame() %>%
@@ -675,7 +655,7 @@ crime_model_4_sigma <- left_join(zip_df, crime_viz_4_sigma, by="id")
 head(crime_model_4_sigma)
 ```
 
-```{r}
+{r}
 crime_viz_4_rho <- crime_data_4 %>%
   colMeans() %>%
   as.data.frame() %>%
@@ -690,7 +670,7 @@ head(crime_model_4_rho)
 ```
 
 ### Map of Crime Differential Growth by Zipcode (Using Model 4)
-```{r}
+{r, cache=TRUE}
 model_4_map <- ggplot() 
 model_4_map <- model_4_map +  geom_polygon(data = crime_model_4_delta, aes(x=long, y=lat, group=group, fill=delta), color = "black", size=0.2) 
 model_4_map <- model_4_map + coord_map() 
@@ -701,7 +681,7 @@ print(model_4_map)
 
 
 ### Map of Income Differential Growth by Zipcode (Using Model 4)
-```{r}
+{r, cache=TRUE}
 model_4_map_sigma <- ggplot() 
 model_4_map_sigma <- model_4_map_sigma +  geom_polygon(data = crime_model_4_sigma, aes(x=long, y=lat, group=group, fill=sigma), color = "black", size=0.2) 
 model_4_map_sigma <- model_4_map_sigma + coord_map() 
@@ -711,7 +691,7 @@ print(model_4_map_sigma)
 ```
 
 ### Map of Percentage Nonwhite Differential Growth by Zipcode (Using Model 4)
-```{r}
+{r, cache=TRUE}
 model_4_map_rho <- ggplot() 
 model_4_map_rho <- model_4_map_rho +  geom_polygon(data = crime_model_4_rho, aes(x=long, y=lat, group=group, fill=rho), color = "black", size=0.2) 
 model_4_map_rho <- model_4_map_rho + coord_map() 
