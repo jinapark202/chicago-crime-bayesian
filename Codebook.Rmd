@@ -5,16 +5,71 @@ date: "12/10/2017"
 output: html_document
 ---
 
-### Crime Data Variabless
+### Crime Data Variables
 
+- Primary Type: type of crime
+
+- Arrest: 1 for arrested, 0 for not arrested
+
+- Domestic: 1 for domestic crimes, 0 for non-domestic crimes
+
+- year: year of crime committed
+
+- date: date of crime committed
 
 ### Model 0 Variables
 
+- $i$: zipcodes in Chicago (58 total in data)
+
+- $j$: years (from 2010 to 2017)
+
+- $y_{ij}$: observed count of crimes in Chicago by year and zipcode
+
+- $p_{ij}$: probability of crime in zipcode $i$ and time $j$
+
+- $n_{i}$: population in zipcode $i$
+
+- $\beta$: time trend
+
+- $time_{j}$: time in years
+
 ### Model 1 Variables
+
+- $i$: zipcodes in Chicago (58 total in data)
+
+- $j$: years (from 2010 to 2017)
+
+- $y_{ij}$: observed count of crimes in Chicago by year and zipcode
+
+- $p_{ij}$: probability of crime in zipcode $i$ and time $j$
+
+- $n_{i}$: population in zipcode $i$
+
+- $\beta_{i}$: different intercept by year
+
+- $\delta_{i}$: crime differential growth by year
+
+- $time_{j}$: time in years
 
 ### Model 2 Variables
 
-### Model 3 Variables
+- $i$: zipcodes in Chicago (58 total in data)
+
+- $j$: years (from 2010 to 2017)
+
+- $y_{ij}$: observed count of crimes in Chicago by year and zipcode
+
+- $p_{ij}$: probability of crime in zipcode $i$ and time $j$
+
+- $n_{i}$: population in zipcode $i$
+
+- $\beta$: different intercept by year
+
+- $\sigma_{i}$: crime differential growth by year accounting for race group and income.
 
 ### Model 4 Variables
+
+
+### Model 5 Variables
+
 
