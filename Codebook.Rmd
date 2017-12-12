@@ -72,4 +72,6 @@ output: html_document
 
 ### Model 5 Variables
 
+- Violent Crimes: Robbery, Battery, Burglary, Assault, Homicide, Sex Offense, Crim Sexual Assault, Arson
 
+- Non-violent crimes: Theft, Deceptive Practice, Narcotics, Other Offense, Criminal Damage, Criminal Trespass, Motor Vehicle Theft, Prostitution, Gambling, Weapons Violation, Offense involving children, Interference with Public Officer, Kidnapping, Stalking, Concealed carry license violation, Intimidation

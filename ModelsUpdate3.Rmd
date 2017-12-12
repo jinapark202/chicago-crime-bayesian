@@ -9,18 +9,9 @@ output: html_document
 
 - Predicting hotspots of specific crimes and how they changed over time and space.
 
-- Are certain types of crimes more prevalent in certain areas than others? 
-
 - How have these hotspots changed over time? If they have changed over time, how has it changed relative to changes in income, demographics, age, etc?
 
-
-### Research Question 2
-
-- Examining police traffic stops and subsequent arrests to determine whether certain ethnic minorities are stopped/arrested more than others.
-
-- Are certain ethnic groups more likely to be arrested/stopped in certain areas than others? For instance, are blacks/hispanics more likely to be stopped/arrested in predominantly white neighborhoods?
-
-- We would like to examine the relationship between traffic stops/arrests and the actual crime rates of different ethnic groups. For instance, are blacks/hispanics getting stopped/arrested at a disproportionately greater rate than they are committing crimes? 
+- Are the hotspots of violent crimes different than the hotspots of non-violent crime? What kinds of locations are these types of crimes more concentrated in?
 
 #### Load Libraries
 ```{r message=FALSE, warning=FALSE}
@@ -103,9 +94,6 @@ Model_Data <- Hotspot_Crime %>%
   select(-c(lat, long, order, piece, group, hole)) %>% distinct
 ```
 
-
-#### Matrix data: crime counts, populations by zipcode and year
-
 #### Nested data: crime counts, population, standardized year 
 ```{r}
 Model_Data <- transform(Model_Data, id=match(zip, unique(zip)))
@@ -123,7 +111,6 @@ write.csv(Model_Data, "Crime_models_data.csv")
 ```{r}
 Model_Data = read.csv("Crime_models_data.csv")
 ```
-
 
 ---------------------------------------------------------------
 
@@ -179,7 +166,6 @@ $$\beta \sim N(0, 1000^2)$$
 
 - time[j]: the time in years
 
-
 ```{r, cache=TRUE}
 #Specify the model
 crime_model_0 <- "model{
@@ -204,11 +190,9 @@ crime_jags_0 <- jags.model(textConnection(crime_model_0), data=list(y=Model_Data
 #simulate a sample from the posterior 
 crime_sim_0 <- coda.samples(crime_jags_0, variable.names=c("beta", "alpha"), n.iter=20000)
 
-
 #store the samples in a data frame:    
 crime_data_0 <- data.frame(crime_sim_0[[1]])
 ```
-
 
 ### Check for convergence
 ```{r}
@@ -389,7 +373,7 @@ model_1_map <- ggplot()
 model_1_map <- model_1_map +  geom_polygon(data = crime_model_1_delta, aes(x=long, y=lat, group=group, fill=delta), color = "black", size=0.2) 
 model_1_map <- model_1_map + coord_map() 
 model_1_map <- model_1_map + labs(x="", y="", title=paste("Crime Differential Growth by Zipcode"), fill="total")
-model_1_map <- model_1_map + cleanup
+model_1_map <- model_1_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
 print(model_1_map)
 ```
 
@@ -522,7 +506,7 @@ model_3_map <- ggplot()
 model_3_map <- model_3_map +  geom_polygon(data = crime_model_3_sigma, aes(x=long, y=lat, group=group, fill=sigma), color = "black", size=0.2) 
 model_3_map <- model_3_map + coord_map() 
 model_3_map <- model_3_map + labs(x="", y="", title=paste("Crime Differential Growth Based on Income and Demographics"), fill="total")
-model_3_map <- model_3_map + cleanup
+model_3_map <- model_3_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
 print(model_3_map)
 
 posterior_means
@@ -624,10 +608,10 @@ running_mean_plot(crime_data_4$beta.5.)
 ```
 
 
+--------------------------------------------------------
+
 
 ## Model 5: Violent vs Non-violent Crime
-
-
 ```{r}
 violent = c("ROBBERY", "BATTERY", "BURGLARY", "ASSAULT", "HOMICIDE", "ARSON", "CRIM SEXUAL ASSAULT", "SEX OFFENSE")
 Violent_Crime <- Crime %>%
@@ -638,7 +622,6 @@ NonViolent_Crime <- Crime %>%
 
 
 **Violent Data**
-
 ```{r}
 #Violent model data
 
@@ -693,7 +676,6 @@ Model_Data_Violent$racegr <- ifelse(Model_Data_Violent$percent_white >80, 1,
                             ifelse(Model_Data_Violent$percent_white <=60 & Model_Data_Violent$percent_white > 40,3,
                             ifelse(Model_Data_Violent$percent_white <=40 & Model_Data_Violent$percent_white > 20,4, 5)))) 
 Model_Data_Violent$income = scale(Model_Data_Violent$per_capita_income)[,1]
-Model_Data_Violent
 ```
 
 **Nonviolent Data**
@@ -751,9 +733,7 @@ Model_Data_Nviolent$racegr <- ifelse(Model_Data_Nviolent$percent_white >80, 1,
                             ifelse(Model_Data_Nviolent$percent_white <=60 & Model_Data_Nviolent$percent_white > 40,3,
                             ifelse(Model_Data_Nviolent$percent_white <=40 & Model_Data_Nviolent$percent_white > 20,4, 5)))) 
 Model_Data_Nviolent$income = scale(Model_Data_Nviolent$per_capita_income)[,1]
-Model_Data_Nviolent
 ```
-
 
 **Model 1: Time trend**
 ```{r, cache=TRUE}
@@ -856,7 +836,7 @@ as.table(crimeNV_model_1_table)
 ## Violent Crime Model 1 Visualizations
 
 ### Map of Crime Differential Growth by Zipcode (Using Model 1)
-```{r}
+```{r, cache=TRUE}
 zip <- readOGR(dsn="Boundaries - ZIP Codes", layer="geo_export_e1262361-5c82-45ee-8427-ef228e06dc4a")
 zip_df <- fortify(zip, region = "zip")
 crimeV_model_1_delta <- left_join(zip_df, data.frame(id=unique(Model_Data_Violent$zip), delta=crimeV_model_1_mean), by='id')
@@ -865,12 +845,12 @@ head(crimeV_model_1_delta)
 model_1_map <- ggplot() 
 model_1_map <- model_1_map +  geom_polygon(data = crimeV_model_1_delta, aes(x=long, y=lat, group=group, fill=delta), color = "black", size=0.2) 
 model_1_map <- model_1_map + coord_map() 
-model_1_map <- model_1_map + labs(x="", y="", title=paste("Crime Differential Growth by Zipcode"), fill="total")
-model_1_map <- model_1_map + cleanup
+model_1_map <- model_1_map + labs(x="", y="", title=paste("Violent Crime Differential Growth by Zipcode"), fill="total")
+model_1_map <- model_1_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
 print(model_1_map)
 ```
 
-```{r}
+```{r, cache=TRUE}
 zip <- readOGR(dsn="Boundaries - ZIP Codes", layer="geo_export_e1262361-5c82-45ee-8427-ef228e06dc4a")
 zip_df <- fortify(zip, region = "zip")
 crimeNV_model_1_delta <- left_join(zip_df, data.frame(id=unique(Model_Data_Nviolent$zip), delta=crimeNV_model_1_mean), by='id')
@@ -879,22 +859,25 @@ head(crimeNV_model_1_delta)
 model_1_map <- ggplot() 
 model_1_map <- model_1_map +  geom_polygon(data = crimeNV_model_1_delta, aes(x=long, y=lat, group=group, fill=delta), color = "black", size=0.2) 
 model_1_map <- model_1_map + coord_map() 
-model_1_map <- model_1_map + labs(x="", y="", title=paste("Non-violent Crime Differential Growth by Zipcode"), fill="total")
-model_1_map <- model_1_map + cleanup
+model_1_map <- model_1_map + labs(x="", y="", title=paste("Non-Violent Crime Differential Growth by Zipcode"), fill="total")
+model_1_map <- model_1_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
 print(model_1_map)
 ```
 
 **Model 3: Demographics trend**
 ```{r}
 Model3_Data_NViolent <- Model_Data_Nviolent %>% filter(Year==2010)
+
 Model3_Data_Violent <- Model_Data_Violent %>% filter(Year==2010)
-data = list(y=Model3_Data_Violent$total, n=Model3_Data_Violent$total_population, zipid=Model3_Data_Violent$id, racegr=Model3_Data_Violent$racegr, income=Model3_Data_Violent$income, ns=nrow(Model3_Data_Violent), nzip=length(unique(Model3_Data_Violent$zip)))
-data.NV = list(y=Model3_Data_NViolent$total, n=Model3_Data_NViolent$total_population, zipid=Model3_Data_NViolent$id, racegr=Model3_Data_NViolent$racegr, income=Model3_Data_NViolent$income, ns=nrow(Model3_Data_NViolent), nzip=length(unique(Model3_Data_NViolent$zip)))
+
+data.v = list(y=Model3_Data_Violent$total, n=Model3_Data_Violent$total_population, racegr=Model3_Data_Violent$racegr, income=Model3_Data_Violent$income, ns=nrow(Model3_Data_Violent))
+
+data.NV = list(y=Model3_Data_NViolent$total, n=Model3_Data_NViolent$total_population, racegr=Model3_Data_NViolent$racegr, income=Model3_Data_NViolent$income, ns=nrow(Model3_Data_NViolent))
 ```
 
 ```{r, cache=TRUE, message=FALSE, warning=FALSE}
 #Specify the model
-crime_model_3 <- "model{
+crime_model_3_v <- "model{
     #Data
     for(i in 1:ns) {
       y[i] ~ dbin(p[i], n[i])
@@ -916,20 +899,20 @@ crime_model_3 <- "model{
 #set up an algorithm to simulate the posterior by 
 #combining the model (nba_model) and data (y)
 #set the random number seed
-crimeV_jags_3 <- jags.model(textConnection(crime_model_3), data=data,
+crimeV_jags_3 <- jags.model(textConnection(crime_model_3_v), data=data.v,
                     inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
-crimeNV_jags_3 <- jags.model(textConnection(crime_model_3), data=data.NV,
+crimeNV_jags_3 <- jags.model(textConnection(crime_model_3_v), data=data.NV,
                     inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
 
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crimeV_sim_3 <- coda.samples(crime_jags_3, variable.names=c("sigma", "tau_0", "beta","tau_1"), n.iter=30000, n.thin=5)
+crimeV_sim_3 <- coda.samples(crimeV_jags_3, variable.names=c("sigma", "tau_0", "beta","tau_1"), n.iter=30000, n.thin=5)
 crimeNV_sim_3 <- coda.samples(crimeNV_jags_3, variable.names=c("sigma", "tau_0", "beta","tau_1"), n.iter=30000, n.thin=5)
 
 
 #store the samples in a data frame:    
-crimeV_data_3 <- data.frame(crime_sim_3[[1]])
+crimeV_data_3 <- data.frame(crimeV_sim_3[[1]])
 crimeNV_data_3 <- data.frame(crimeNV_sim_3[[1]])
 ```
 
@@ -978,18 +961,17 @@ crimeNV_model_3_sigma <- crimeNV_model_3_sigma %>%
 model_3_map <- ggplot() 
 model_3_map <- model_3_map +  geom_polygon(data = crimeV_model_3_sigma, aes(x=long, y=lat, group=group, fill=sigma), color = "black", size=0.2) 
 model_3_map <- model_3_map + coord_map() 
-model_3_map <- model_3_map + labs(x="", y="", title=paste("Violent Crime Differential Growth Based on Income and Demographics"), fill="total")
-model_3_map <- model_3_map + cleanup
+model_3_map <- model_3_map + labs(x="", y="", title=paste("Violent Crime Differential Growth"), fill="total")
+model_3_map <- model_3_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
 print(model_3_map)
 ```
 
-
-```{r}
+```{r, cache=TRUE}
 model_3_map <- ggplot() 
 model_3_map <- model_3_map +  geom_polygon(data = crimeNV_model_3_sigma, aes(x=long, y=lat, group=group, fill=sigma), color = "black", size=0.2) 
 model_3_map <- model_3_map + coord_map() 
-model_3_map <- model_3_map + labs(x="", y="", title=paste("Non-violent Crime Differential Growth Based on Income and Demographics"), fill="total")
-model_3_map <- model_3_map + cleanup
+model_3_map <- model_3_map + labs(x="", y="", title=paste("Non-Violent Crime Differential Growth"), fill="total")
+model_3_map <- model_3_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
 print(model_3_map)
 
 posterior_means
