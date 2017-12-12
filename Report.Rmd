@@ -1,5 +1,5 @@
 ---
-title: "Report"
+title: "Examining Crime Hotspots in Chicago Using Bayesian Statistics"
 author: "Jina Park, Phuc Nguyen"
 date: "12/7/2017"
 output: html_document
@@ -7,18 +7,526 @@ output: html_document
 
 ### Motivation
 
-Chicago is often recognized as one of the most dangerous cities in the United States. In fact, it currently leads the nation with the most homicides and violent crimes. Using police data from the City of Chicago's Data Portal, we examine crime hot spots in Chicago and whether crime rates differ by geographic and demographic information. Are certain crimes more likely in certain areas than others?
+**Provide a clear description of your project goals. Provide a brief description and citations for existing literature on this topic (or the other resources that inspired this project).**
 
-Traffic stops and subsequent deaths of Sandra Bland raise growing concerns that of police harassment toward minorities. We analyze the rates in which people in Chicago are stopped by ethnicity groups and location. Are certain ethnic groups stopped at a disproportionately greater rate than others?
+Chicago currently leads the United States with the greatest number of homicides and violent crimes. In 2016, the number of homicides in Chicago increased 58% from the year before (Ford, 2017). Using police data from the City of Chicago's Data Portal, we examine crime hot spots in Chicago and whether crime rates differ by geographic and demographic information. In addition, we examine the hot spots for violent and non-violent crimes. Understanding crime hot spots proves advantageous to law enforcement as they can enact hot spot policing measures and other resources to reduce crime in these particular areas (Law, et al. 2014). In particular, the Bayesian approach can be used to predict changes in hot spots and crime rates over time. 
+
+##### Literature Review 
+
+Law, et al. (2014) identifies hot spots and overall trends of violent crime in the Greater Toronto Area using a Bayesian spatiotemporal modeling approach. 
 
 ### Methods and Results
 
+**Discuss your methodology in detail (e.g. the structure of your Bayesian model, your prior/posterior understanding, your Markov chain algorithm).**
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+# Load Library
+library(tidyr)
+library(rjags)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(MacBayes)
+library(choroplethrZip)
+library(rgdal)
+```
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+# Map cleanup 
+cleanup <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = 'white', colour = 'white'),
+        axis.line = element_line(colour = "white"),
+        axis.ticks=element_blank(), axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+```
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+# Load data
+Model_Data = read.csv("Crime_models_data.csv")
+Model_Data_Violent = read.csv("Crime_models_violent_data.csv")
+Model_Data_Nviolent = read.csv("Crime_models_nonviolent_data.csv")
+```
+
+###### Talk about data and the methods used
+We obtained the data _____. Each row represents a crime observation in Chicago between 2010-2017. We focus on the variables, location, time, and type of crime. We standardized the values for year and income.
+
+To derive our models, we used the Gibbs sampler. We checked for convergence of our models using running mean plots and the Gailman measure.
+
+###### Overview of Models
+In the future, we are interested in examining hotspots for specific types of crime in Chicago.
+
+First model is looking at changes in crime rate as a result of time.
+
+Second model is looking at changes in crime rate taking into account differences in race and income levels in specific areas.
+
+For these two models, we also dive deeper to look at difference in hot spots of violent vs non-violent crimes.
+
+Finally, the third model predicts the count of crime incidents in an area given its demographics, year, and income level. It also takes into account the interaction between income and race.
+
+Tested the predictive model by predicting crime counts in 2016 and comparing it to the actual crime counts in 2016.
+
+
+##### Mode1 1
+- Add graph with lots of lines
+
+- Talk about how it shows that crime rates overall might have a negative linear trend over time.
+
+- Include map
+
+```{r, include=FALSE, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+#Data
+data = list(y=Model_Data$total, n=Model_Data$total_population, time=Model_Data$time, zipid=Model_Data$id, ns=length(Model_Data$total), nzip=length(unique(Model_Data$id)))
+
+#Specify the model
+crime_model_1 <- "model{
+    #Data
+    for(i in 1:ns) {
+      y[i] ~ dbin(p[i], n[i])
+      logit(p[i]) = beta[zipid[i]] + delta[zipid[i]]*time[i]
+    }
+    
+    #Priors
+    for(j in 1:nzip){
+      delta[j] ~ dnorm(0, tau_1)
+      beta[j] ~ dnorm(0, tau_0)
+    }
+
+    #Hyperpriors
+    tau_0 ~ dgamma(0.5, 0.0005)
+    tau_1 ~ dgamma(0.5, 0.0005)
+    
+}"
+
+#set up an algorithm to simulate the posterior
+#set the random number seed
+init.rng1<-list(".RNG.seed" = 1998, ".RNG.name" = "base::Mersenne-Twister")
+crime_jags_1 <- jags.model(textConnection(crime_model_1), data=data,
+                    inits=init.rng1)
+
+
+#simulate a sample from the posterior 
+crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("delta", "beta", "tau_0", "tau_1"), n.iter=30000)
+
+
+#store the samples in a data frame:    
+crime_data_1 <- data.frame( crime_sim_1[[1]])
+```
+
+```{r, include=FALSE, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+n = length(unique(Model_Data$zip))
+crime_model_1_mean <- matrix(nrow=n, ncol=1)
+for (i in 1:n) {
+      crime_model_1_mean[i, ] <- mean(crime_data_1[[i+n]])
+}
+
+zip <- readOGR(dsn="Boundaries - ZIP Codes", layer="geo_export_e1262361-5c82-45ee-8427-ef228e06dc4a")
+zip_df <- fortify(zip, region = "zip")
+crime_model_1_delta <- left_join(zip_df, data.frame(id=as.character(unique(Model_Data$zip)), delta=crime_model_1_mean), by='id')
+```
+
+```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+model_1_map <- ggplot() 
+model_1_map <- model_1_map +  geom_polygon(data = crime_model_1_delta, aes(x=long, y=lat, group=group, fill=delta), color = "black", size=0.2) 
+model_1_map <- model_1_map + coord_map() 
+model_1_map <- model_1_map + labs(x="", y="", title=paste("Crime Differential Growth by Zipcode"), caption="Model 1", fill="Trend over Time")
+model_1_map <- model_1_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
+print(model_1_map)
+```
+
+- Discuss the map
+
+- Violent vs nonviolent crime maps
+```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
+#Data
+data = list(y=Model_Data_Violent$total, n=Model_Data_Violent$total_population, time=Model_Data_Violent$time, zipid=Model_Data_Violent$id, ns=length(Model_Data_Violent$total), nzip=length(unique(Model_Data_Violent$id)))
+
+data.NV = list(y=Model_Data_Nviolent$total, n=Model_Data_Nviolent$total_population, time=Model_Data_Nviolent$time, zipid=Model_Data_Nviolent$id, ns=length(Model_Data_Nviolent$total), nzip=length(unique(Model_Data_Nviolent$id)))
+```
+
+```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
+#Specify the model
+crime_model_1 <- "model{
+    #Data
+    for(i in 1:ns) {
+      y[i] ~ dbin(p[i], n[i])
+      logit(p[i]) = beta[zipid[i]] + delta[zipid[i]]*time[i]
+    }
+    
+    #Priors
+    for(j in 1:nzip){
+      delta[j] ~ dnorm(0, tau_1)
+      beta[j] ~ dnorm(0, tau_0)
+    }
+
+    #Hyperpriors
+    tau_0 ~ dgamma(0.5, 0.0005)
+    tau_1 ~ dgamma(0.5, 0.0005)
+    
+}"
+
+#set up an algorithm to simulate the posterior
+#set the random number seed
+init.rng1<-list(".RNG.seed" = 1998, ".RNG.name" = "base::Mersenne-Twister")
+crimeV_jags_1 <- jags.model(textConnection(crime_model_1), data=data,
+                    inits=init.rng1)
+crimeNV_jags_1 <- jags.model(textConnection(crime_model_1), data=data.NV,
+                    inits=init.rng1)
+
+
+#simulate a sample from the posterior 
+crimeV_sim_1 <- coda.samples(crimeV_jags_1, variable.names=c("delta", "beta", "tau_0", "tau_1"), n.iter=30000)
+
+crimeNV_sim_1 <- coda.samples(crimeNV_jags_1, variable.names=c("delta", "beta", "tau_0", "tau_1"), n.iter=30000)
+
+
+#store the samples in a data frame:    
+crimeV_data_1 <- data.frame( crimeV_sim_1[[1]])
+crimeNV_data_1 <- data.frame( crimeNV_sim_1[[1]])
+```
+
+```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
+n = length(unique(Model_Data_Violent$zip))
+n = length(unique(Model_Data_Nviolent$zip))
+
+crimeV_model_1_mean <- matrix(nrow=n, ncol=1)
+for (i in 1:n) {
+      crimeV_model_1_mean[i, ] <- mean(crimeV_data_1[[i+n]])
+}
+
+crimeNV_model_1_mean <- matrix(nrow=n, ncol=1)
+for (i in 1:n) {
+      crimeNV_model_1_mean[i, ] <- mean(crimeNV_data_1[[i+n]])
+}
+```
+
+```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
+zip <- readOGR(dsn="Boundaries - ZIP Codes", layer="geo_export_e1262361-5c82-45ee-8427-ef228e06dc4a")
+zip_df <- fortify(zip, region = "zip")
+crimeV_model_1_delta <- left_join(zip_df, data.frame(id=as.character(unique(Model_Data_Violent$zip)), delta=crimeV_model_1_mean), by='id')
+
+zip <- readOGR(dsn="Boundaries - ZIP Codes", layer="geo_export_e1262361-5c82-45ee-8427-ef228e06dc4a")
+zip_df <- fortify(zip, region = "zip")
+crimeNV_model_1_delta <- left_join(zip_df, data.frame(id=as.character(unique(Model_Data_Nviolent$zip)), delta=crimeNV_model_1_mean), by='id')
+```
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
+model_1_map <- ggplot() 
+model_1_map <- model_1_map +  geom_polygon(data = crimeV_model_1_delta, aes(x=long, y=lat, group=group, fill=delta), color = "black", size=0.2) 
+model_1_map <- model_1_map + coord_map() 
+model_1_map <- model_1_map + labs(x="", y="", title=paste("Violent Crime Differential Growth by Zipcode"), fill="Trend over Time", caption="Model 1")
+model_1_map <- model_1_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
+print(model_1_map)
+```
+
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
+model_1_map <- ggplot() 
+model_1_map <- model_1_map +  geom_polygon(data = crimeNV_model_1_delta, aes(x=long, y=lat, group=group, fill=delta), color = "black", size=0.2) 
+model_1_map <- model_1_map + coord_map() 
+model_1_map <- model_1_map + labs(x="", y="", title=paste("Non-Violent Crime Differential Growth by Zipcode"), fill="Trend over Time", caption="Model 1")
+model_1_map <- model_1_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
+print(model_1_map)
+```
+
+- Discuss the maps
+
+
+##### Model 2
+- Add graph with income and race and nonwhite percentage (Simpson's Paradox) -> reason for interaction term.
+
+```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
+Crime_count_log <- Model_Data %>%
+  mutate(log_rate = log(total/total_population)) %>%
+  select(zip, Year, log_rate)
+
+Model_Data_1 <- Model_Data %>%
+  filter(Year == 2010) %>%
+  mutate(percent_nonwhite = 100 - percent_white) %>%
+  select(zip, per_capita_income, percent_nonwhite) %>%
+  right_join(Crime_count_log, by="zip") 
+```
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
+ggplot(Model_Data_1, aes(x=log(per_capita_income), y=log_rate, colour=percent_nonwhite)) + geom_point() + labs(x="Log of Per Capita Income", y="Log of Crime Rate", title="Relationship between Per Capita Income and Crime Rate", color="Nonwhite Percentage") 
+```
+
+- Talk about groupings of race
+
+- Add maps
+```{r, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE, echo=FALSE}
+Model2_Data <- Model_Data %>% filter(Year==2010)
+data = list(y=Model2_Data$total, n=Model2_Data$total_population, zipid=Model2_Data$id, racegr=Model2_Data$racegr, income=Model2_Data$income, ns=nrow(Model2_Data), nzip=length(unique(Model2_Data$zip)))
+
+#Specify the model
+crime_model_2 <- "model{
+    #Data
+    for(i in 1:ns) {
+      y[i] ~ dbin(p[i], n[i])
+      logit(p[i]) = beta[racegr[i]] + sigma[racegr[i]]*income[i]
+    }
+    
+    #Priors
+    for(j in 1:5){
+      sigma[j] ~ dnorm(0, tau_1)
+      beta[j] ~ dnorm(0, tau_0)
+    }
+
+    #Hyperpriors
+    tau_0 ~ dgamma(0.5, 0.0005)
+    tau_1 ~ dgamma(0.5, 0.0005)
+    
+}"
+
+#set up an algorithm to simulate the posterior by 
+#combining the model (nba_model) and data (y)
+#set the random number seed
+crime_jags_2 <- jags.model(textConnection(crime_model_2), data=data,
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+
+
+#simulate a sample from the posterior 
+#note that we specify both mu and tau variables
+crime_sim_2 <- coda.samples(crime_jags_2, variable.names=c("sigma", "tau_0", "beta","tau_1"), n.iter=30000, n.thin=5)
+
+#store the samples in a data frame:    
+crime_data_2 <- data.frame(crime_sim_2[[1]])
+```
+
+```{r, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE, echo=FALSE}
+posterior_means <- crime_data_2 %>% colMeans()
+
+crime_model_2_sigma <- Model_Data
+crime_model_2_sigma$beta <- recode(crime_model_2_sigma$racegr, `1`=posterior_means[1],
+                                   `2`=posterior_means[2],
+                                   `3`=posterior_means[3],
+                                   `4`=posterior_means[4],
+                                   `5`=posterior_means[5])
+crime_model_2_sigma$sigma <- recode(crime_model_2_sigma$racegr, `1`=posterior_means[6],
+                                   `2`=posterior_means[7],
+                                   `3`=posterior_means[8],
+                                   `4`=posterior_means[9],
+                                   `5`=posterior_means[10])
+crime_model_2_sigma <- crime_model_2_sigma %>%
+  mutate(id = as.character(zip)) %>%
+  right_join(zip_df, by="id")
+```
+
+```{r, cache=TRUE, message=FALSE, warning=FALSE, echo=FALSE}
+model_2_map <- ggplot() 
+model_2_map <- model_2_map +  geom_polygon(data = crime_model_2_sigma, aes(x=long, y=lat, group=group, fill=sigma), color = "black", size=0.2) 
+model_2_map <- model_2_map + coord_map() 
+model_2_map <- model_2_map + labs(x="", y="", title=paste("Crime Differential Growth Based on Income and Demographics"), caption="Model 2", fill="Trend over Time")
+model_2_map <- model_2_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
+print(model_2_map)
+```
+
+- Talk about maps
+
+- Add maps for violent vs non-violent crimes
+
+```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+Model2_Data_NViolent <- Model_Data_Nviolent %>% filter(Year==2010)
+
+Model2_Data_Violent <- Model_Data_Violent %>% filter(Year==2010)
+
+data.v = list(y=Model2_Data_Violent$total, n=Model2_Data_Violent$total_population, racegr=Model2_Data_Violent$racegr, income=Model2_Data_Violent$income, ns=nrow(Model2_Data_Violent))
+
+data.NV = list(y=Model2_Data_NViolent$total, n=Model2_Data_NViolent$total_population, racegr=Model2_Data_NViolent$racegr, income=Model2_Data_NViolent$income, ns=nrow(Model2_Data_NViolent))
+```
+
+```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+#Specify the model
+crime_model_2_v <- "model{
+    #Data
+    for(i in 1:ns) {
+      y[i] ~ dbin(p[i], n[i])
+      logit(p[i]) = beta[racegr[i]] + sigma[racegr[i]]*income[i]
+    }
+    
+    #Priors
+    for(j in 1:5){
+      sigma[j] ~ dnorm(0, tau_1)
+      beta[j] ~ dnorm(0, tau_0)
+    }
+
+    #Hyperpriors
+    tau_0 ~ dgamma(0.5, 0.0005)
+    tau_1 ~ dgamma(0.5, 0.0005)
+    
+}"
+
+#set up an algorithm to simulate the posterior by 
+#combining the model (nba_model) and data (y)
+#set the random number seed
+crimeV_jags_2 <- jags.model(textConnection(crime_model_2_v), data=data.v,
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+crimeNV_jags_2 <- jags.model(textConnection(crime_model_2_v), data=data.NV,
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+
+
+#simulate a sample from the posterior 
+#note that we specify both mu and tau variables
+crimeV_sim_2 <- coda.samples(crimeV_jags_2, variable.names=c("sigma", "tau_0", "beta","tau_1"), n.iter=30000, n.thin=5)
+crimeNV_sim_2 <- coda.samples(crimeNV_jags_2, variable.names=c("sigma", "tau_0", "beta","tau_1"), n.iter=30000, n.thin=5)
+
+
+#store the samples in a data frame:    
+crimeV_data_2 <- data.frame(crimeV_sim_2[[1]])
+crimeNV_data_2 <- data.frame(crimeNV_sim_2[[1]])
+```
+
+```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+posterior_means <- crimeV_data_2 %>% colMeans()
+
+crimeV_model_2_sigma <- Model_Data_Violent
+
+crimeV_model_2_sigma$beta <- recode(crimeV_model_2_sigma$racegr, `1`=posterior_means[1],
+                                   `2`=posterior_means[2],
+                                   `3`=posterior_means[3],
+                                   `4`=posterior_means[4],
+                                   `5`=posterior_means[5])
+crimeV_model_2_sigma$sigma <- recode(crimeV_model_2_sigma$racegr, `1`=posterior_means[6],
+                                   `2`=posterior_means[7],
+                                   `3`=posterior_means[8],
+                                   `4`=posterior_means[9],
+                                   `5`=posterior_means[10])
+crimeV_model_2_sigma <- crimeV_model_2_sigma %>%
+  mutate(id = as.character(zip)) %>%
+  right_join(zip_df, by="id")
+
+posterior_means <- crimeNV_data_2 %>% colMeans()
+
+crimeNV_model_2_sigma <- Model_Data_Nviolent
+crimeNV_model_2_sigma$beta <- recode(crimeNV_model_2_sigma$racegr, `1`=posterior_means[1],
+                                   `2`=posterior_means[2],
+                                   `3`=posterior_means[3],
+                                   `4`=posterior_means[4],
+                                   `5`=posterior_means[5])
+crimeNV_model_2_sigma$sigma <- recode(crimeNV_model_2_sigma$racegr, `1`=posterior_means[6],
+                                   `2`=posterior_means[7],
+                                   `3`=posterior_means[8],
+                                   `4`=posterior_means[9],
+                                   `5`=posterior_means[10])
+crimeNV_model_2_sigma <- crimeNV_model_2_sigma %>%
+  mutate(id = as.character(zip)) %>%
+  right_join(zip_df, by="id")
+```
+
+```{r, echo=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+model_2_map <- ggplot() 
+model_2_map <- model_2_map +  geom_polygon(data = crimeV_model_2_sigma, aes(x=long, y=lat, group=group, fill=sigma), color = "black", size=0.2) 
+model_2_map <- model_2_map + coord_map() 
+model_2_map <- model_2_map + labs(x="", y="", title=paste("Violent Crime Differential Growth"), fill="Trend over Time", caption="Model 2")
+model_2_map <- model_2_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
+print(model_2_map)
+```
+
+```{r, echo=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+model_2_map <- ggplot() 
+model_2_map <- model_2_map +  geom_polygon(data = crimeNV_model_2_sigma, aes(x=long, y=lat, group=group, fill=sigma), color = "black", size=0.2) 
+model_2_map <- model_2_map + coord_map() 
+model_2_map <- model_2_map + labs(x="", y="", title=paste("Non-Violent Crime Differential Growth"), fill="Trend over Time", caption="Model 2")
+model_2_map <- model_2_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
+print(model_2_map)
+```
+
+##### Model 3
+- Refer to Simpson's paradox to justify interaction term.
+
+- Discuss the parameter results
+
+- Add map
+
+```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+train_data <- Model_Data %>%
+  filter(Year != 2016)
+
+data = list(ns=nrow(train_data), y=train_data$total, n=train_data$total_population, income=train_data$income, white=train_data$percent_white, time=train_data$time)
+head(train_data)
+```
+
+```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+#Specify the model
+crime_model_3 <- "model{
+    #Data
+    for(i in 1:ns) {
+      y[i] ~ dbin(p[i], n[i])
+      logit(p[i]) = beta[1] + beta[2]*time[i] + beta[3]*income[i] + beta[4]*white[i] + beta[5]*white[i]*income[i]
+    }
+    
+    #Priors
+    for(i in 1:5){
+      beta[i] ~ dnorm(0, tau[i])
+      tau[i] ~ dgamma(0.5, 0.0005)
+    }
+    
+}"
+
+#set up an algorithm to simulate the posterior by 
+#combining the model (nba_model) and data (y)
+#set the random number seed
+crime_jags_3 <- jags.model(textConnection(crime_model_3), data=data,
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+
+
+#simulate a sample from the posterior 
+#note that we specify both mu and tau variables
+crime_sim_3 <- coda.samples(crime_jags_3, variable.names=c("beta","tau"), n.iter=60000)
+
+#store the samples in a data frame:    
+crime_data_3 <- data.frame(crime_sim_3[[1]])
+```
+
+```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+crime_data_3 <- crime_data_3[20000:nrow(crime_data_3), ]
+crime_data_3_sum <- as.data.frame(colMeans(crime_data_3))
+
+test_data <- Model_Data %>%
+  filter(Year == 2016)
+
+model_3_predictor <- function(param, income, percent_nonwhite, year, population){
+   c <- (param[1,1] + param[2,1] * year + param[3,1] * income + param[4,1] * percent_nonwhite + param[5,1] * percent_nonwhite * income)
+   p <- exp(c)/(1 + exp(c))
+   return(p * population)
+}
+
+predicted_crime_count <- model_3_predictor(crime_data_3_sum, test_data$income, test_data$percent_white, test_data$time, test_data$total_population)
+
+actual_crime_count <- test_data$total 
+crime_count_diff <- predicted_crime_count - actual_crime_count
+
+zip <- readOGR(dsn="Boundaries - ZIP Codes", layer="geo_export_e1262361-5c82-45ee-8427-ef228e06dc4a")
+zip_df <- fortify(zip, region = "zip")
+crime_model_3_count_diff <- left_join(zip_df, data.frame(id=as.character(unique(test_data$zip)), crime_difference=crime_count_diff), by='id')
+head(crime_model_3_count_diff)
+```
+
+```{r, echo=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+model_3_map <- ggplot() 
+model_3_map <- model_3_map +  geom_polygon(data = crime_model_3_count_diff, aes(x=long, y=lat, group=group, fill=crime_difference), color = "black", size=0.2) 
+model_3_map <- model_3_map + coord_map() 
+model_3_map <- model_3_map + labs(x="", y="", title=paste("Difference in Crime Count by Zipcode"), caption="Model 3", fill="Count Difference")
+model_3_map <- model_3_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
+print(model_3_map)
+```
+
+- Discuss interpretation of map
+
+
 ### Next Steps
+
+**Discuss future work that could be done on your project. What are the limitations of your current data/models/algorithms?**
+
 
 ### Bibliography
 
-Gelman, Andrew, et al. “An Analysis of the New York City Police Department's "Stop-and-Frisk" Policy in the Context of Claims of Racial Bias.” Journal of the American Statistical Association, vol. 102, no. 479, 2007, pp. 813–823.
+Braga, Anthony A., Andrew V. Papachristos, and David M. Hureau. 2012. “The Effects of Hot Spots Policing on Crime: An Updated Systematic Review and Meta-Analysis.” Justice Quarterly iFirst:1–31.
 
 Law, Jane, et al. “Analyzing Hotspots of Crime Using a Bayesian Spatiotemporal Modeling Approach: A Case Study of Violent Crime in the Greater Toronto Area.” Geographical Analysis, vol. 47, no. 1, Oct. 2014, pp. 1–19.
+
+https://www.theatlantic.com/politics/archive/2017/01/chicago-homicide-spike-2016/514331/
+
+
+Hierarchial Bayesian Spatial Models for Alcohol Availability, drug "hot spots"
 
 ### Appendix and supplementary material
