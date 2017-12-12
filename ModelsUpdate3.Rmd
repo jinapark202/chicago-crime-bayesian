@@ -561,7 +561,11 @@ $$\tau_{2} \sim Gamma(0.5, 0.0005)$$
 $$\tau_{3} \sim Gamma(0.5, 0.0005)$$
 
 ```{r}
-data = list(ns=nrow(Model_Data), y=Model_Data$total, n=Model_Data$total_population, income=Model_Data$income, white=Model_Data$percent_white, time=Model_Data$time)
+train_data <- Model_Data %>%
+  filter(Year != 2016)
+
+data = list(ns=nrow(train_data), y=train_data$total, n=train_data$total_population, income=train_data$income, white=train_data$percent_white, time=train_data$time)
+head(train_data)
 ```
 
 ```{r, cache=TRUE, message=FALSE, warning=FALSE}
@@ -595,6 +599,31 @@ crime_sim_4 <- coda.samples(crime_jags_4, variable.names=c("beta","tau"), n.iter
 
 #store the samples in a data frame:    
 crime_data_4 <- data.frame(crime_sim_4[[1]])
+```
+
+### Mean of parameters from Model 4
+```{r}
+head(crime_data_4)
+crime_data_4 <- crime_data_4[20000:nrow(crime_data_4), ]
+crime_data_4_sum <- as.data.frame(colMeans(crime_data_4))
+crime_data_4_sum
+```
+
+```{r}
+test_data <- Model_Data %>%
+  filter(Year == 2016)
+```
+
+### Function to predict crime rate given parameters
+```{r}
+model_4_predictor <- function(param, income, percent_nonwhite, year){
+   return (param[1,1] + param[2,1] * year + param[3,1] * income + param[4,1] * percent_nonwhite + param[5,1] * percent_nonwhite * income)
+ }
+```
+
+```{r}
+predicted_crime_rate <- model_4_predictor(crime_data_4_sum, test_data$income, test_data$percent_white, test_data$time)
+predicted_crime_rate
 ```
 
 ### Running Mean Plots
@@ -979,7 +1008,8 @@ posterior_means
 #See Posterior means
 ```
 
-### Crime Model 5 Visualizations
+
+
 ```
 crime_viz_4_delta <- crime_data_4 %>%
   colMeans() %>%
