@@ -582,7 +582,6 @@ crime_model_4 <- "model{
       beta[i] ~ dnorm(0, tau[i])
       tau[i] ~ dgamma(0.5, 0.0005)
     }
-
     
 }"
 
@@ -616,13 +615,16 @@ test_data <- Model_Data %>%
 
 ### Function to predict crime rate given parameters
 ```{r}
-model_4_predictor <- function(param, income, percent_nonwhite, year){
-   return (param[1,1] + param[2,1] * year + param[3,1] * income + param[4,1] * percent_nonwhite + param[5,1] * percent_nonwhite * income)
+model_4_predictor <- function(param, income, percent_nonwhite, year, population){
+   c <- (param[1,1] + param[2,1] * year + param[3,1] * income + param[4,1] * percent_nonwhite + param[5,1] * percent_nonwhite * income)
+   p <- exp(c)/(1 + exp(c))
+   return(p * population)
  }
 ```
 
+### Predicted Crime Count
 ```{r}
-predicted_crime_rate <- model_4_predictor(crime_data_4_sum, test_data$income, test_data$percent_white, test_data$time)
+predicted_crime_rate <- model_4_predictor(crime_data_4_sum, test_data$income, test_data$percent_white, test_data$time, test_data$total_population)
 predicted_crime_rate
 ```
 
