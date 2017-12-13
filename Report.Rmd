@@ -19,7 +19,7 @@ Law, et al. (2014) identifies hot spots and overall trends of violent crime in t
 
 **Discuss your methodology in detail (e.g. the structure of your Bayesian model, your prior/posterior understanding, your Markov chain algorithm).**
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE}
 # Load Library
 library(tidyr)
 library(rjags)
@@ -29,9 +29,27 @@ library(tidyverse)
 library(MacBayes)
 library(choroplethrZip)
 library(rgdal)
+library(devtools)
+library(choroplethr)
+library(choroplethrMaps)
+library(mapproj)
+library(cowplot)
+library(grid)
+library(gridExtra)
+
+#install.packages("devtools")
+#install_github('arilamstein/choroplethrZip@v1.5.0')
 ```
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE}
+# Load data
+Crime <- read.csv("Crime.csv")
+Model_Data <- read.csv("Crime_models_data.csv")
+Model_Data_Violent <- read.csv("Crime_models_violent_data.csv")
+Model_Data_Nviolent <- read.csv("Crime_models_nonviolent_data.csv")
+```
+
+```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE}
 # Map cleanup 
 cleanup <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         panel.background = element_rect(fill = 'white', colour = 'white'),
@@ -40,11 +58,113 @@ cleanup <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_
         axis.text.y=element_blank())
 ```
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
-# Load data
-Model_Data = read.csv("Crime_models_data.csv")
-Model_Data_Violent = read.csv("Crime_models_violent_data.csv")
-Model_Data_Nviolent = read.csv("Crime_models_nonviolent_data.csv")
+```{r, include=FALSE, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+towntracts <- readOGR(dsn="chicago_tracts_2010", layer="geo_export_9588a35d-8dfa-4dd9-9d49-6cdfc941d52b")
+```
+
+```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+Crime_2010 <- Crime %>% filter(Year == 2010)
+gg2010 <- ggplot()
+gg2010 <- gg2010 + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill="grey90", size=0.5) 
+gg2010 <- gg2010 + stat_density2d(data=Crime_2010, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
+gg2010 <- gg2010 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
+gg2010 <- gg2010 +  coord_map("polyconic")
+gg2010 <- gg2010 + labs(x=NULL, y=NULL,
+                  subtitle=NULL,
+                  caption="2010")
+gg2010 <- gg2010 + cleanup + theme(plot.margin = unit(c(0,0,0,0), "lines"))
+
+Crime_2013 <- Crime %>% filter(Year == 2013)
+gg2013 <- ggplot()
+gg2013 <- gg2013 + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill="grey90", size=0.5) 
+gg2013 <- gg2013 + stat_density2d(data=Crime_2013, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
+gg2013 <- gg2013 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
+gg2013 <- gg2013 +  coord_map("polyconic")
+gg2013 <- gg2013 + labs(x=NULL, y=NULL,
+                  subtitle=NULL,
+                  caption="2013")
+gg2013 <- gg2013 + cleanup + theme(plot.margin = unit(c(0,0,0,0), "lines"))
+
+
+Crime_2016 <- Crime %>% filter(Year == 2016)
+gg2016 <- ggplot()
+gg2016 <- gg2016 + geom_polygon(data=towntracts, aes(x=long, y=lat, group=group), colour="black", fill="grey90", size=0.5) 
+gg2016 <- gg2016 + stat_density2d(data=Crime_2016, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
+gg2016 <- gg2016 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
+gg2016 <- gg2016 +  coord_map("polyconic")
+gg2016 <- gg2016 + labs(x=NULL, y=NULL,
+                  subtitle=NULL,
+                  caption="2016")
+gg2016 <- gg2016 + cleanup + theme(plot.margin = unit(c(0,0,0,0), "lines"))
+
+grid.arrange(gg2010, gg2013, gg2016, ncol=3, top=textGrob("Concentration of Crime in Chicago"))
+```
+
+```{r, include=FALSE, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+data(df_pop_zip)
+data(df_zip_demographics)
+
+zip_percent_white <- df_zip_demographics[c("region", "percent_white")]
+colnames(zip_percent_white)[2] <- "value"
+
+zip_percent_black <- df_zip_demographics[c("region", "percent_black")]
+colnames(zip_percent_black)[2] <- "value"
+
+zip_percent_asian <- df_zip_demographics[c("region", "percent_asian")]
+colnames(zip_percent_asian)[2] <- "value"
+
+zip_percent_hispanic <- df_zip_demographics[c("region", "percent_hispanic")]
+colnames(zip_percent_hispanic)[2] <- "value"
+
+zip_per_capita_income <- df_zip_demographics[c("region", "per_capita_income")]
+colnames(zip_per_capita_income)[2] <- "value"
+
+zip_median_rent <- df_zip_demographics[c("region", "median_rent")]
+colnames(zip_median_rent)[2] <- "value"
+
+zip_median_age <- df_zip_demographics[c("region", "median_age")]
+colnames(zip_median_age)[2] <- "value"
+
+data(zip.regions)
+chi_nap_elg <- subset(zip.regions, zip.regions$cbsa.title=="Chicago-Naperville-Elgin, IL-IN-WI")
+cook_county <- subset(chi_nap_elg, chi_nap_elg$county.name == "cook")
+cook_fips <- cook_county$county.fips.numeric
+```
+
+```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE, fig.width=15, fig.height=15, fig.align="center"}
+pop_map <- zip_choropleth(df_pop_zip, 
+               county_zoom = cook_fips, 
+               title="Total Population") + coord_map()
+
+white_pop_map <- zip_choropleth(zip_percent_white, 
+               county_zoom = cook_fips, 
+               title="White Population") + coord_map()
+
+black_pop_map <- zip_choropleth(zip_percent_black, 
+               county_zoom = cook_fips, 
+               title="Black Population") + coord_map()
+
+asian_pop_map <- zip_choropleth(zip_percent_asian, 
+               county_zoom = cook_fips, 
+               title="Asian Population") + coord_map()
+
+hisp_pop_map <- zip_choropleth(zip_percent_hispanic, 
+               county_zoom = cook_fips, 
+               title="Hispanic Population") + coord_map()
+
+income_map <- zip_choropleth(zip_per_capita_income, 
+               county_zoom = cook_fips, 
+               title="Per Capita Income") + coord_map()
+
+rent_map <- zip_choropleth(zip_median_rent, 
+               county_zoom = cook_fips, 
+               title="Median Rent") + coord_map()
+
+age_map <- zip_choropleth(zip_median_age, 
+               county_zoom = cook_fips, 
+               title="Median Age") + coord_map()
+
+grid.arrange(pop_map, white_pop_map, black_pop_map, asian_pop_map, hisp_pop_map, income_map, rent_map, age_map, ncol=3, top="Demographic Maps of Chicago by Zipcode")
 ```
 
 ###### Talk about data and the methods used
@@ -210,22 +330,22 @@ crimeNV_model_1_delta <- left_join(zip_df, data.frame(id=as.character(unique(Mod
 ```
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
-model_1_map <- ggplot() 
-model_1_map <- model_1_map +  geom_polygon(data = crimeV_model_1_delta, aes(x=long, y=lat, group=group, fill=delta), color = "black", size=0.2) 
-model_1_map <- model_1_map + coord_map() 
-model_1_map <- model_1_map + labs(x="", y="", title=paste("Violent Crime Differential Growth by Zipcode"), fill="Trend over Time", caption="Model 1")
-model_1_map <- model_1_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
-print(model_1_map)
+model_1_map_v <- ggplot() 
+model_1_map_v <- model_1_map_v +  geom_polygon(data = crimeV_model_1_delta, aes(x=long, y=lat, group=group, fill=delta), color = "black", size=0.2) 
+model_1_map_v <- model_1_map_v + coord_map() 
+model_1_map_v <- model_1_map_v + labs(x="", y="", title=paste("Violent Crime Differential Growth by Zipcode"), fill="Trend over Time", caption="Model 1")
+model_1_map_v <- model_1_map_v + cleanup + scale_fill_gradient(low = "blue", high = "orange")
 ```
 
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
-model_1_map <- ggplot() 
-model_1_map <- model_1_map +  geom_polygon(data = crimeNV_model_1_delta, aes(x=long, y=lat, group=group, fill=delta), color = "black", size=0.2) 
-model_1_map <- model_1_map + coord_map() 
-model_1_map <- model_1_map + labs(x="", y="", title=paste("Non-Violent Crime Differential Growth by Zipcode"), fill="Trend over Time", caption="Model 1")
-model_1_map <- model_1_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
-print(model_1_map)
+```{r, message=FALSE, warning=FALSE, echo=FALSE, comment=NA, fig.width=15, fig.height=15, fig.align="center"}
+model_1_map_nv <- ggplot() 
+model_1_map_nv <- model_1_map_nv +  geom_polygon(data = crimeNV_model_1_delta, aes(x=long, y=lat, group=group, fill=delta), color = "black", size=0.2) 
+model_1_map_nv <- model_1_map_nv + coord_map() 
+model_1_map_nv <- model_1_map_nv + labs(x="", y="", title=paste("Non-Violent Crime Differential Growth by Zipcode"), fill="Trend over Time", caption="Model 1")
+model_1_map_nv <- model_1_map_nv + cleanup + scale_fill_gradient(low = "blue", high = "orange")
+
+grid.arrange(model_1_map_v, model_1_map_nv, ncol=2)
 ```
 
 - Discuss the maps
@@ -413,21 +533,21 @@ crimeNV_model_2_sigma <- crimeNV_model_2_sigma %>%
 ```
 
 ```{r, echo=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
-model_2_map <- ggplot() 
-model_2_map <- model_2_map +  geom_polygon(data = crimeV_model_2_sigma, aes(x=long, y=lat, group=group, fill=sigma), color = "black", size=0.2) 
-model_2_map <- model_2_map + coord_map() 
-model_2_map <- model_2_map + labs(x="", y="", title=paste("Violent Crime Differential Growth"), fill="Trend over Time", caption="Model 2")
-model_2_map <- model_2_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
-print(model_2_map)
+model_2_map_v <- ggplot() 
+model_2_map_v <- model_2_map_v +  geom_polygon(data = crimeV_model_2_sigma, aes(x=long, y=lat, group=group, fill=sigma), color = "black", size=0.2) 
+model_2_map_v <- model_2_map_v + coord_map() 
+model_2_map_v <- model_2_map_v + labs(x="", y="", title=paste("Violent Crime Differential Growth"), fill="Trend over Time", caption="Model 2")
+model_2_map_v <- model_2_map_v + cleanup + scale_fill_gradient(low = "blue", high = "orange")
 ```
 
-```{r, echo=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
-model_2_map <- ggplot() 
-model_2_map <- model_2_map +  geom_polygon(data = crimeNV_model_2_sigma, aes(x=long, y=lat, group=group, fill=sigma), color = "black", size=0.2) 
-model_2_map <- model_2_map + coord_map() 
-model_2_map <- model_2_map + labs(x="", y="", title=paste("Non-Violent Crime Differential Growth"), fill="Trend over Time", caption="Model 2")
-model_2_map <- model_2_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
-print(model_2_map)
+```{r, echo=FALSE, cache=TRUE, message=FALSE, warning=FALSE, fig.width=15, fig.height=15, fig.align="center"}
+model_2_map_nv <- ggplot() 
+model_2_map_nv <- model_2_map_nv +  geom_polygon(data = crimeNV_model_2_sigma, aes(x=long, y=lat, group=group, fill=sigma), color = "black", size=0.2) 
+model_2_map_nv <- model_2_map_nv + coord_map() 
+model_2_map_nv <- model_2_map_nv + labs(x="", y="", title=paste("Non-Violent Crime Differential Growth"), fill="Trend over Time", caption="Model 2")
+model_2_map_nv <- model_2_map_nv + cleanup + scale_fill_gradient(low = "blue", high = "orange")
+
+grid.arrange(model_2_map_v, model_2_map_nv, ncol=2)
 ```
 
 ##### Model 3
