@@ -50,6 +50,12 @@ Crime <- read.csv("Crime.csv")
 Model_Data <- read.csv("Crime_models_data.csv")
 Model_Data_Violent <- read.csv("Crime_models_violent_data.csv")
 Model_Data_Nviolent <- read.csv("Crime_models_nonviolent_data.csv")
+
+train_data <- Model_Data %>% filter(Year < 2016)
+test_data <- Model_Data %>% filter(Year==2016)
+
+load("model_1_MCMC_samples_train.Rda")
+load("model_2_MCMC_samples_train.Rda")
 ```
 
 ```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE}
@@ -228,46 +234,7 @@ $log(\frac{p_{ij}}{1-p_{ij}})$ represents the log odds of the inherent crime rat
 The prior distributions of $\beta$ and $\sigma$ are normally distributed with a mean of zero and a precision of $\tau$. $\tau$, which is modeled with a Gamma distribution, has a standard deviation of roughly 63. This signifies that $\tau$ is a vague prior given that the grand mean of $\beta_{i}$ and $\delta_{i}$ are approximately -7.45 and -0.065.
 
 ```{r, include=FALSE, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
-#Data
-data = list(y=Model_Data$total, n=Model_Data$total_population, time=Model_Data$time, zipid=Model_Data$id, ns=length(Model_Data$total), nzip=length(unique(Model_Data$id)))
-
-#Specify the model
-crime_model_1 <- "model{
-    #Data
-    for(i in 1:ns) {
-      y[i] ~ dbin(p[i], n[i])
-      logit(p[i]) = beta[zipid[i]] + delta[zipid[i]]*time[i]
-    }
-    
-    #Priors
-    for(j in 1:nzip){
-      delta[j] ~ dnorm(0, tau_1)
-      beta[j] ~ dnorm(0, tau_0)
-    }
-
-    #Hyperpriors
-    tau_0 ~ dgamma(0.5, 0.0005)
-    tau_1 ~ dgamma(0.5, 0.0005)
-    
-}"
-
-#set up an algorithm to simulate the posterior
-#set the random number seed
-init.rng1<-list(".RNG.seed" = 1998, ".RNG.name" = "base::Mersenne-Twister")
-crime_jags_1 <- jags.model(textConnection(crime_model_1), data=data,
-                    inits=init.rng1)
-
-
-#simulate a sample from the posterior 
-crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("delta", "beta", "tau_0", "tau_1"), n.iter=30000)
-
-
-#store the samples in a data frame:    
-crime_data_1 <- data.frame( crime_sim_1[[1]])
-```
-
-```{r, include=FALSE, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
-n = length(unique(Model_Data$zip))
+n = length(unique(train_data$zip))
 crime_model_1_mean <- matrix(nrow=n, ncol=1)
 for (i in 1:n) {
       crime_model_1_mean[i, ] <- mean(crime_data_1[[i+n]])
@@ -275,7 +242,7 @@ for (i in 1:n) {
 
 zip <- readOGR(dsn="Boundaries - ZIP Codes", layer="geo_export_e1262361-5c82-45ee-8427-ef228e06dc4a")
 zip_df <- fortify(zip, region = "zip")
-crime_model_1_delta <- left_join(zip_df, data.frame(id=as.character(unique(Model_Data$zip)), delta=crime_model_1_mean), by='id')
+crime_model_1_delta <- left_join(zip_df, data.frame(id=as.character(unique(train_data$zip)), delta=crime_model_1_mean), by='id')
 ```
 
 ```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
@@ -288,54 +255,6 @@ print(model_1_map)
 ```
 
 Chicago is particularly well-known for its high level of violent crime including homicides. In fact, in 2016, the number of homicides in Chicago increased 58% from the previous year. For this reason, we divided our data into two groups, violent and non-violent crimes, to examine whether hot spots of violent crimes differ from hot spots of non-violent crimes. We classified the following types of crime as 'violent': robbery, battery, burglary, assault, homicide, sex offense, criminal sexual assault, and arson. All other crime types in our data are considered 'non-violent'. 
-
-```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
-#Data
-data = list(y=Model_Data_Violent$total, n=Model_Data_Violent$total_population, time=Model_Data_Violent$time, zipid=Model_Data_Violent$id, ns=length(Model_Data_Violent$total), nzip=length(unique(Model_Data_Violent$id)))
-
-data.NV = list(y=Model_Data_Nviolent$total, n=Model_Data_Nviolent$total_population, time=Model_Data_Nviolent$time, zipid=Model_Data_Nviolent$id, ns=length(Model_Data_Nviolent$total), nzip=length(unique(Model_Data_Nviolent$id)))
-```
-
-```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
-#Specify the model
-crime_model_1 <- "model{
-    #Data
-    for(i in 1:ns) {
-      y[i] ~ dbin(p[i], n[i])
-      logit(p[i]) = beta[zipid[i]] + delta[zipid[i]]*time[i]
-    }
-    
-    #Priors
-    for(j in 1:nzip){
-      delta[j] ~ dnorm(0, tau_1)
-      beta[j] ~ dnorm(0, tau_0)
-    }
-
-    #Hyperpriors
-    tau_0 ~ dgamma(0.5, 0.0005)
-    tau_1 ~ dgamma(0.5, 0.0005)
-    
-}"
-
-#set up an algorithm to simulate the posterior
-#set the random number seed
-init.rng1<-list(".RNG.seed" = 1998, ".RNG.name" = "base::Mersenne-Twister")
-crimeV_jags_1 <- jags.model(textConnection(crime_model_1), data=data,
-                    inits=init.rng1)
-crimeNV_jags_1 <- jags.model(textConnection(crime_model_1), data=data.NV,
-                    inits=init.rng1)
-
-
-#simulate a sample from the posterior 
-crimeV_sim_1 <- coda.samples(crimeV_jags_1, variable.names=c("delta", "beta", "tau_0", "tau_1"), n.iter=30000)
-
-crimeNV_sim_1 <- coda.samples(crimeNV_jags_1, variable.names=c("delta", "beta", "tau_0", "tau_1"), n.iter=30000)
-
-
-#store the samples in a data frame:    
-crimeV_data_1 <- data.frame( crimeV_sim_1[[1]])
-crimeNV_data_1 <- data.frame( crimeNV_sim_1[[1]])
-```
 
 ```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
 n = length(unique(Model_Data_Violent$zip))
@@ -419,24 +338,69 @@ ggplot(Model_Data_1, aes(x=log(per_capita_income), y=log_rate, colour=percent_no
 - Talk about groupings of race
 
 - Add maps
-```{r, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE, echo=FALSE}
-Model2_Data <- Model_Data 
-data = list(y=Model2_Data$total, n=Model2_Data$total_population, time=Model2_Data$time, zipid=Model2_Data$id, racegr=Model2_Data$racegr, income=Model2_Data$income, ns=nrow(Model2_Data), nzip=length(unique(Model2_Data$zip)))
 
+```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+Model2_Data <- Model_Data 
+temp <- Model_Data %>% filter(!duplicated(zipid))
+data.2 = list(y=Model2_Data$total, 
+            n=Model2_Data$total_population, 
+            zipid=Model2_Data$zipid, 
+            racegr=Model2_Data$racegr, 
+            income=Model2_Data$income, 
+            ns=nrow(Model2_Data), 
+            time=Model2_Data$time, 
+            nzip=length(unique(Model2_Data$zip)),
+            raceid = temp$racegr,
+            incomezip = temp$income)
+
+Model2_Data_NViolent <- Model_Data_Nviolent %>% filter(Year==2010)
+temp.V <- Model_Data %>% filter(!duplicated(zipid))
+
+Model2_Data_Violent <- Model_Data_Violent %>% filter(Year==2010)
+temp.NV <- Model_Data %>% filter(!duplicated(zipid))
+
+data.V.2 = list(y=Model2_Data_Violent$total, 
+            n=Model2_Data_Violent$total_population, 
+            zipid=Model2_Data_Violent$zipid, 
+            racegr=Model2_Data_Violent$racegr, 
+            income=Model2_Data_Violent$income, 
+            ns=nrow(Model2_Data_Violent), 
+            time=Model2_Data_Violent$time, 
+            nzip=length(unique(Model2_Data_Violent$zip)),
+            raceid = temp.V$racegr,
+            incomezip = temp.V$income)
+
+data.NV.2 = list(y=Model2_Data_NViolent$total, 
+            n=Model2_Data_NViolent$total_population, 
+            zipid=Model2_Data_NViolent$zipid, 
+            racegr=Model2_Data_NViolent$racegr, 
+            income=Model2_Data_NViolent$income, 
+            ns=nrow(Model2_Data_NViolent), 
+            time=Model2_Data_NViolent$time, 
+            nzip=length(unique(Model2_Data_NViolent$zip)),
+            raceid = temp.NV$racegr,
+            incomezip = temp.NV$income)
+```
+
+```{r, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE, echo=FALSE}
 #Specify the model
 crime_model_2 <- "model{
     #Data
     for(i in 1:ns) {
       y[i] ~ dbin(p[i], n[i])
-      logit(p[i]) = beta[racegr[i]] + delta[racegr[i]]*time[i] + sigma[racegr[i]]*income[i] 
+      logit(p[i]) = beta[zipid[i]] + delta[zipid[i]]*time[i] 
     }
     
     #Priors
+    for(i in 1:nzip){
+      beta[i] ~ dnorm(beta0 + sigma[raceid[i]]*incomezip[i], tau_0)
+      delta[i] ~ dnorm(delta0, tau_1)
+    }
+    beta0 ~ dnorm(0, 1/1000^2)
+    delta0 ~ dnorm(0, 1/1000^2)
+    sigma0 ~ dnorm(0, 1/1000^2)
     for(j in 1:5){
-      sigma[j] ~ dnorm(0, tau_2)
-      beta[j] ~ dnorm(0, tau_0)
-      delta[j] ~ dnorm(0, tau_1)
-
+      sigma[j] ~ dnorm(sigma0, tau_2)
     }
 
     #Hyperpriors
@@ -448,17 +412,23 @@ crime_model_2 <- "model{
 
 #set up an algorithm to simulate the posterior by 
 #combining the model (nba_model) and data (y)
-#set the random number seeds
-crime_jags_2 <- jags.model(textConnection(crime_model_2), data=data,
+#set the random number seed
+crime_jags_2 <- jags.model(textConnection(crime_model_2), data=data.2,
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+crimeV_jags_2 <- jags.model(textConnection(crime_model_2), data=data.V.2,
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+crimeNV_jags_2 <- jags.model(textConnection(crime_model_2), data=data.NV.2,
                     inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
 
+#Simulate a sample from the posterior 
+crime_sim_2 <- coda.samples(crime_jags_2, variable.names=c("beta", "beta0", "delta", "delta0","sigma","sigma0", "tau_0","tau_1","tau_2"), n.iter=50000)
+crimeV_sim_2 <- coda.samples(crimeV_jags_2, variable.names=c("beta", "beta0", "delta", "delta0","sigma","sigma0", "tau_0","tau_1","tau_2"), n.iter=50000)
+crimeNV_sim_2_ <- coda.samples(crimeNV_jags_2, variable.names=c("beta", "beta0", "delta", "delta0","sigma","sigma0", "tau_0","tau_1","tau_2"), n.iter=50000)
 
-#simulate a sample from the posterior 
-#note that we specify both mu and tau variables
-crime_sim_2 <- coda.samples(crime_jags_2, variable.names=c("sigma", "tau_0", "beta","tau_1", "tau_2", "delta"), n.iter=30000, n.thin=5)
-
-#store the samples in a data frame:    
+#Store the samples in a data frame:    
 crime_data_2 <- data.frame(crime_sim_2[[1]])
+crimeV_data_2 <- data.frame(crimeV_sim_2[[1]])
+crimeNV_data_2 <- data.frame(crimeNV_sim_2[[1]])
 ```
 
 ```{r, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE, echo=FALSE}
@@ -493,56 +463,6 @@ print(model_2_map)
 
 - Add maps for violent vs non-violent crimes
 
-```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
-Model2_Data_NViolent <- Model_Data_Nviolent %>% filter(Year==2010)
-
-Model2_Data_Violent <- Model_Data_Violent %>% filter(Year==2010)
-
-data.v = list(y=Model2_Data_Violent$total, n=Model2_Data_Violent$total_population, racegr=Model2_Data_Violent$racegr, income=Model2_Data_Violent$income, ns=nrow(Model2_Data_Violent))
-
-data.NV = list(y=Model2_Data_NViolent$total, n=Model2_Data_NViolent$total_population, racegr=Model2_Data_NViolent$racegr, income=Model2_Data_NViolent$income, ns=nrow(Model2_Data_NViolent))
-```
-
-```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
-#Specify the model
-crime_model_2_v <- "model{
-    #Data
-    for(i in 1:ns) {
-      y[i] ~ dbin(p[i], n[i])
-      logit(p[i]) = beta[racegr[i]] + sigma[racegr[i]]*income[i]
-    }
-    
-    #Priors
-    for(j in 1:5){
-      sigma[j] ~ dnorm(0, tau_1)
-      beta[j] ~ dnorm(0, tau_0)
-    }
-
-    #Hyperpriors
-    tau_0 ~ dgamma(0.5, 0.0005)
-    tau_1 ~ dgamma(0.5, 0.0005)
-    
-}"
-
-#set up an algorithm to simulate the posterior by 
-#combining the model (nba_model) and data (y)
-#set the random number seed
-crimeV_jags_2 <- jags.model(textConnection(crime_model_2_v), data=data.v,
-                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
-crimeNV_jags_2 <- jags.model(textConnection(crime_model_2_v), data=data.NV,
-                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
-
-
-#simulate a sample from the posterior 
-#note that we specify both mu and tau variables
-crimeV_sim_2 <- coda.samples(crimeV_jags_2, variable.names=c("sigma", "tau_0", "beta","tau_1"), n.iter=30000, n.thin=5)
-crimeNV_sim_2 <- coda.samples(crimeNV_jags_2, variable.names=c("sigma", "tau_0", "beta","tau_1"), n.iter=30000, n.thin=5)
-
-
-#store the samples in a data frame:    
-crimeV_data_2 <- data.frame(crimeV_sim_2[[1]])
-crimeNV_data_2 <- data.frame(crimeNV_sim_2[[1]])
-```
 
 ```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
 posterior_means <- crimeV_data_2 %>% colMeans()
@@ -615,9 +535,20 @@ Tested the predictive model by predicting crime counts in 2016 and comparing it 
 ```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
 train_data <- Model_Data %>%
   filter(Year != 2016)
-
-data = list(ns=nrow(train_data), y=train_data$total, n=train_data$total_population, income=train_data$income, white=train_data$percent_white, time=train_data$time)
-head(train_data)
+temp <- train_data %>% filter(!duplicated(zipid))
+#project income onto percent white vector
+decomp <- qr(cbind(temp$income, temp$percent_white, temp$income*temp$percent_white))
+Q <- qr.Q(decomp)
+R <- qr.R(decomp)
+data = list(ns=nrow(train_data), 
+            y=train_data$total, 
+            n=train_data$total_population,
+            time=train_data$time, 
+            nzip=length(unique(train_data$zipid)), 
+            zipid=train_data$zipid, 
+            incomezip=Q[,1], 
+            whitezip=Q[,2],
+            interactionzip = Q[,3])
 ```
 
 ```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
@@ -626,14 +557,21 @@ crime_model_3 <- "model{
     #Data
     for(i in 1:ns) {
       y[i] ~ dbin(p[i], n[i])
-      logit(p[i]) = beta[1] + beta[2]*time[i] + beta[3]*income[i] + beta[4]*white[i] + beta[5]*white[i]*income[i]
+      logit(p[i]) = beta[zipid[i]] + delta[zipid[i]]*time[i] 
     }
     
     #Priors
-    for(i in 1:5){
-      beta[i] ~ dnorm(0, tau[i])
-      tau[i] ~ dgamma(0.5, 0.0005)
+    beta0 ~ dnorm(0, 1/1000^2)
+    delta0 ~ dnorm(0, 1/1000^2)
+    for(i in 1:nzip){
+      beta[i] ~ dnorm(beta0 + sigma[2]*whitezip[i] + sigma[3]*interactionzip[i] + sigma[1]*incomezip[i], tau_0)
+      delta[i] ~ dnorm(delta0, tau_1)
     }
+    for(i in 1:3){
+      sigma[i] ~ dnorm(0, 1/1000^2)
+    }
+    tau_0 ~ dgamma(0.5, 0.0005)
+    tau_1 ~ dgamma(0.5, 0.0005)
     
 }"
 
@@ -646,7 +584,7 @@ crime_jags_3 <- jags.model(textConnection(crime_model_3), data=data,
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim_3 <- coda.samples(crime_jags_3, variable.names=c("beta","tau"), n.iter=60000)
+crime_sim_3 <- coda.samples(crime_jags_3, variable.names=c("beta","delta", "sigma"), n.iter=60000)
 
 #store the samples in a data frame:    
 crime_data_3 <- data.frame(crime_sim_3[[1]])
@@ -708,3 +646,60 @@ https://data.cityofchicago.org/Public-Safety/Crimes-2001-to-present/ijzp-q8t2/da
 Hierarchial Bayesian Spatial Models for Alcohol Availability, drug "hot spots"
 
 ### Appendix and supplementary material
+
+#### Crime Model 1
+```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
+#Data
+data = list(y=Model_Data$total, n=Model_Data$total_population, time=Model_Data$time, zipid=Model_Data$zipid, ns=length(Model_Data$total), nzip=length(unique(Model_Data$id)))
+
+data.V = list(y=Model_Data_Violent$total, n=Model_Data_Violent$total_population, time=Model_Data_Violent$time, zipid=Model_Data_Violent$id, ns=length(Model_Data_Violent$total), nzip=length(unique(Model_Data_Violent$id)))
+
+data.NV = list(y=Model_Data_Nviolent$total, n=Model_Data_Nviolent$total_population, time=Model_Data_Nviolent$time, zipid=Model_Data_Nviolent$id, ns=length(Model_Data_Nviolent$total), nzip=length(unique(Model_Data_Nviolent$id)))
+```
+
+```{r, include=FALSE, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+#Specify the model
+crime_model_1 <- "model{
+    #Data
+    for(i in 1:ns) {
+      y[i] ~ dbin(p[i], n[i])
+      logit(p[i]) = beta[zipid[i]] + delta[zipid[i]]*time[i]
+    }
+    
+    #Priors
+    for(j in 1:nzip){
+      delta[j] ~ dnorm(delta0, tau_1)
+      beta[j] ~ dnorm(beta0, tau_0)
+    }
+    beta0 ~ dnorm(0, 1/1000^2)
+    delta0 ~ dnorm(0, 1/1000^2)
+
+    #Hyperpriors
+    tau_0 ~ dgamma(0.5, 0.0005)
+    tau_1 ~ dgamma(0.5, 0.0005)
+    
+}"
+
+#set up an algorithm to simulate the posterior
+#set the random number seed
+init.rng1<-list(".RNG.seed" = 1998, ".RNG.name" = "base::Mersenne-Twister")
+crime_jags_1 <- jags.model(textConnection(crime_model_1), data=data,
+                    inits=init.rng1)
+crimeV_jags_1 <- jags.model(textConnection(crime_model_1), data=data.V,
+                    inits=init.rng1)
+crimeNV_jags_1 <- jags.model(textConnection(crime_model_1), data=data.NV,
+                    inits=init.rng1)
+
+#simulate a sample from the posterior 
+crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("delta", "beta", "tau_0", "tau_1"), n.iter=30000)
+crimeV_sim_1 <- coda.samples(crimeV_jags_1, variable.names=c("delta", "beta", "tau_0", "tau_1"), n.iter=30000)
+crimeNV_sim_1 <- coda.samples(crimeNV_jags_1, variable.names=c("delta", "beta", "tau_0", "tau_1"), n.iter=30000)
+
+
+#store the samples in a data frame:    
+crime_data_1 <- data.frame( crime_sim_1[[1]])
+crimeV_data_1 <- data.frame(crimeV_sim_1[[1]])
+crimeNV_data_1 <- data.frame(crimeNV_sim_1[[1]])
+```
+
+
