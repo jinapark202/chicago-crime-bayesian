@@ -272,7 +272,13 @@ $$\tau_1 \sim Gamma(0.5, 0.0005)$$
 
 ```{r, cache=TRUE}
 #Data
-data = list(y=Model_Data$total, n=Model_Data$total_population, time=Model_Data$time, zipid=Model_Data$zipid, ns=length(Model_Data$total), nzip=length(unique(Model_Data$id)))
+train_data <- Model_Data %>%
+  filter(Year < 2016)
+test_data <- Model_Data %>%
+  filter(Year == 2016)
+save(train_data, file="train_data.Rda")
+save(test_data, file="test_data.Rda")
+data = list(y=train_data$total, n=train_data$total_population, time=train_data$time, zipid=train_data$zipid, ns=length(train_data$total), nzip=length(unique(train_data$id)))
 ```
 
 ```{r, cache=TRUE}
@@ -306,13 +312,14 @@ crime_jags_1 <- jags.model(textConnection(crime_model_1), data=data,
 
 
 #simulate a sample from the posterior 
-crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("delta", "beta", "tau_0", "tau_1"), n.iter=30000)
+crime_sim_1 <- coda.samples(crime_jags_1, variable.names=c("delta", "beta", "beta0", "delta0", "tau_0", "tau_1"), n.iter=30000)
 
 
 #store the samples in a data frame:    
 crime_data_1 <- data.frame( crime_sim_1[[1]])
 
-write.csv()
+save(crime_data_1, file="model_1_MCMC_samples_train.Rda")
+save(crime_sim_1, file="model_1_MCMC_sim_train.Rda")
 ```
 
 ### Check for convergence
@@ -438,16 +445,15 @@ $$\tau_{1} \sim Gamma(0.5, 0.0005)$$
 $$\[\hat{y} = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_{1\times 2} x_1 x_2 \] $$
 
 ```{r}
-Model2_Data <- Model_Data #%>% filter(Year==2010)
-temp <- Model_Data %>% filter(!duplicated(zipid))
-data = list(y=Model2_Data$total, 
-            n=Model2_Data$total_population, 
-            zipid=Model2_Data$zipid, 
-            racegr=Model2_Data$racegr, 
-            income=Model2_Data$income, 
-            ns=nrow(Model2_Data), 
-            time=Model2_Data$time, 
-            nzip=length(unique(Model2_Data$zip)),
+temp <- train_data %>% filter(!duplicated(zipid))
+data = list(y=train_data$total, 
+            n=train_data$total_population, 
+            zipid=train_data$zipid, 
+            racegr=train_data$racegr, 
+            income=train_data$income, 
+            ns=nrow(train_data), 
+            time=train_data$time, 
+            nzip=length(unique(train_data$zip)),
             raceid = temp$racegr,
             incomezip = temp$income)
 ```
@@ -489,11 +495,14 @@ crime_jags_2 <- jags.model(textConnection(crime_model_2), data=data,
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim_2 <- coda.samples(crime_jags_2, variable.names=c("beta", "beta0", "delta", "delta0","sigma","sigma0", "tau_0","tau_1","tau_2"), n.iter=50000)
+crime_sim_2 <- coda.samples(crime_jags_2, variable.names=c("beta", "beta0", "delta", "delta0","sigma","sigma0", "tau_0","tau_1","tau_2"), n.iter=30000)
 
 
 #store the samples in a data frame:    
 crime_data_2 <- data.frame(crime_sim_2[[1]])
+
+save(crime_data_2, file="model_2_MCMC_samples_train.Rda")
+save(crime_sim_2, file="model_2_MCMC_sim_train.Rda")
 ```
 
 ```{r}
@@ -604,8 +613,6 @@ $$\tau_{2} \sim Gamma(0.5, 0.0005)$$
 $$\tau_{3} \sim Gamma(0.5, 0.0005)$$
 
 ```{r}
-train_data <- Model_Data %>%
-  filter(Year != 2016)
 temp <- train_data %>% filter(!duplicated(zipid))
 #project income onto percent white vector
 decomp <- qr(cbind(temp$income, temp$percent_white, temp$income*temp$percent_white))
@@ -659,6 +666,9 @@ crime_sim_3 <- coda.samples(crime_jags_3, variable.names=c("beta","delta", "sigm
 
 #store the samples in a data frame:    
 crime_data_3 <- data.frame(crime_sim_3[[1]])
+
+save(crime_data_3, file="model_3_MCMC_samples_train.Rda")
+save(crime_sim_3, file="model_3_MCMC_sim_train.Rda")
 ```
 
 ### Check for convergence
