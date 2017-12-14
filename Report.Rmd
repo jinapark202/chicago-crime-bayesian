@@ -13,11 +13,15 @@ Chicago currently leads the United States with the greatest number of homicides 
 
 ##### Literature Review 
 
-Law, et al. (2014) identifies hot spots and overall trends of violent crime in the Greater Toronto Area using a Bayesian spatiotemporal modeling approach. 
+Law, et al. (2014) identifies hot spots and overall trends of violent crime in the Greater Toronto Area using a Bayesian spatiotemporal modeling approach. Although frequentists define hot spots as areas with high crime rates that are also surrounded by other high-crime areas for one time period, Bayesian statistics allow us to examine how hot spots change over time (Law, et al. 2014). For this reason, we apply Bayesian methods to examine how hot spots in Chicago change year over year. 
+
+
 
 ### Methods and Results
 
 **Discuss your methodology in detail (e.g. the structure of your Bayesian model, your prior/posterior understanding, your Markov chain algorithm).**
+
+Although Chicago is widely known for its high level of violent crime, certain areas of Chicago are prone to more crime than others. In Figure 1 below, the concentration of crime in Chicago is particularly high in the areas highlighted in red. To add further, the concentration of hot spots shifts slighly from 2010 to 2016, with greater crime rates in northeast Chicago in 2016 compared to 2010. 
 
 ```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE}
 # Load Library
@@ -33,7 +37,6 @@ library(devtools)
 library(choroplethr)
 library(choroplethrMaps)
 library(mapproj)
-library(cowplot)
 library(grid)
 library(gridExtra)
 
@@ -131,6 +134,9 @@ cook_county <- subset(chi_nap_elg, chi_nap_elg$county.name == "cook")
 cook_fips <- cook_county$county.fips.numeric
 ```
 
+
+The maps below highlight the significant demographic differences across different zipcodes in Chicago. While per capita income appears positively related with both the Asian and White populations in Chicago, it appears negatively related with the Hispanic and Black populations. Since crime rates might differ between both race and income groups, we take these demographics into consideration when predicting hot spots in Chicago.
+
 ```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE, fig.width=15, fig.height=15, fig.align="center"}
 pop_map <- zip_choropleth(df_pop_zip, 
                county_zoom = cook_fips, 
@@ -168,30 +174,58 @@ grid.arrange(pop_map, white_pop_map, black_pop_map, asian_pop_map, hisp_pop_map,
 ```
 
 ###### Talk about data and the methods used
-We obtained the data _____. Each row represents a crime observation in Chicago between 2010-2017. We focus on the variables, location, time, and type of crime. We standardized the values for year and income.
+
+For this research, we obtained our data from the City of Chicago's Data Portal. We filter for crimes occurred between 2010-2017 where each row represents a crime observation in Chicago. In addition, we standardized the values for year and income to make our models easier to interpret and converge. We then focused on the following variables for our analysis: time, type of crime, and location.
 
 To derive our models, we used the Gibbs sampler. We checked for convergence of our models using running mean plots and the Gailman measure.
 
 ###### Overview of Models
-In the future, we are interested in examining hotspots for specific types of crime in Chicago.
 
-First model is looking at changes in crime rate as a result of time.
+Figure 3 plots the relationship between the log of the crime rate and year for zipcodes in Chicago. It shows a slight downward trend in the log of crime rates as the years increase. Since it is possible that overall crime rates might have a negative, linear trend over time, we incorporate a time trend in our models.
 
-Second model is looking at changes in crime rate taking into account differences in race and income levels in specific areas.
+```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE, fig.width=15, fig.height=15, fig.align="center"}
+Crime_count <- Model_Data %>%
+  select(Year, zip, total) %>%
+  spread(key=Year, value=total)
+rownames(Crime_count) <- Crime_count$zip 
+Crime_count <- Crime_count %>% select(-zip)
+Crime_count[is.na(Crime_count)] <- 0
 
-For these two models, we also dive deeper to look at difference in hot spots of violent vs non-violent crimes.
+Population <- Model_Data %>%
+  select(total_population, zip, Year) %>%
+  spread(key=Year, value=total_population) %>%
+  select('2010', zip)
+rownames(Population) <- Population$zip
+Population <- Population %>% select(-zip)
+Population[is.na(Population)] <- 0
+Population.vector <- Population$`2010`
 
-Finally, the third model predicts the count of crime incidents in an area given its demographics, year, and income level. It also takes into account the interaction between income and race.
+Crime_count_log_calc <- log(Crime_count/Population.vector)
+Crime_count_log <- Crime_count_log_calc %>%
+  rownames_to_column() %>%
+  gather(key=year, value=crime_count_log, -rowname) %>%
+  mutate(zip=rowname) %>%
+  select(zip, year, crime_count_log) %>%
+  mutate(year=as.numeric(year))
 
-Tested the predictive model by predicting crime counts in 2016 and comparing it to the actual crime counts in 2016.
+ggplot(Crime_count_log, aes(x=year, y=crime_count_log, colour=zip)) + geom_point() + geom_line() + labs(title="Crime Rate Over Time", y="Log of Crime Rate", x="Year", color="Zipcodes")
+```
 
+##### Model 1
 
-##### Mode1 1
-- Add graph with lots of lines
+In our first model, we predict crime hot spots in Chicago is a simple model that incorporates a time trend.
 
-- Talk about how it shows that crime rates overall might have a negative linear trend over time.
+$$y_{ij} \sim Bin(n_{ij}, p_{ij})$$
+$$log(\frac{p_{ij}}{1-p_{ij}}) = \beta_{i} + \delta_{i}* time_{j}$$
+$$\beta_{i} \sim N(0, \tau_{0})$$
+$$\delta_{i} \sim N(0, \tau_{1})$$
+$$\tau_{0,1} \sim Gamma(0.5, 0.0005)$$
 
-- Include map
+In this model, $y_{ij}$ is the observed crime count in zipcode $i$ and year $j$, where $p_{ij}$ is the probability of a person being involved in a crime and $n_{ij}$ represents the total population. It is modeled with a Binomial distribution because a person is either involved in a crime incident or not involved in a crime incident. 
+
+$log(\frac{p_{ij}}{1-p_{ij}})$ represents the log odds of the inherent crime rate in zipcode $i$ and year $j$. The log odds is a function of $\beta_{i}$, which is the intercept for each zipcode $i$ in Chicago, $\delta_{i}$, the crime differential growth over time in zipcode $i$, and time.
+
+The prior distributions of $\beta$ and $\sigma$ are normally distributed with a mean of zero and a precision of $\tau$. $\tau$, which is modeled with a Gamma distribution, has a standard deviation of roughly 63. This signifies that $\tau$ is a vague prior given that the grand mean of $\beta_{i}$ and $\delta_{i}$ are approximately -7.45 and -0.065.
 
 ```{r, include=FALSE, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
 #Data
@@ -253,9 +287,8 @@ model_1_map <- model_1_map + cleanup + scale_fill_gradient(low = "blue", high = 
 print(model_1_map)
 ```
 
-- Discuss the map
+Chicago is particularly well-known for its high level of violent crime including homicides. In fact, in 2016, the number of homicides in Chicago increased 58% from the previous year. For this reason, we divided our data into two groups, violent and non-violent crimes, to examine whether hot spots of violent crimes differ from hot spots of non-violent crimes. We classified the following types of crime as 'violent': robbery, battery, burglary, assault, homicide, sex offense, criminal sexual assault, and arson. All other crime types in our data are considered 'non-violent'. 
 
-- Violent vs nonviolent crime maps
 ```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
 #Data
 data = list(y=Model_Data_Violent$total, n=Model_Data_Violent$total_population, time=Model_Data_Violent$time, zipid=Model_Data_Violent$id, ns=length(Model_Data_Violent$total), nzip=length(unique(Model_Data_Violent$id)))
@@ -319,7 +352,7 @@ for (i in 1:n) {
 }
 ```
 
-```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
+```{r, , fig.width=15, fig.height=15, fig.align="center", include=FALSE, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
 zip <- readOGR(dsn="Boundaries - ZIP Codes", layer="geo_export_e1262361-5c82-45ee-8427-ef228e06dc4a")
 zip_df <- fortify(zip, region = "zip")
 crimeV_model_1_delta <- left_join(zip_df, data.frame(id=as.character(unique(Model_Data_Violent$zip)), delta=crimeV_model_1_mean), by='id')
@@ -348,11 +381,24 @@ model_1_map_nv <- model_1_map_nv + cleanup + scale_fill_gradient(low = "blue", h
 grid.arrange(model_1_map_v, model_1_map_nv, ncol=2)
 ```
 
-- Discuss the maps
-
+The map of violent crimes shows greater areas of increasing crime differential growth compared to non-violent crimes over time. This suggests that overall, violent crimes are increasing in Chicago more than non-violent crimes. However, in general, it appears that many areas of Chicago are facing lower crime, both violent and non-violent, with time.
 
 ##### Model 2
-- Add graph with income and race and nonwhite percentage (Simpson's Paradox) -> reason for interaction term.
+
+In our second model, we examine changes in the crime rate while taking into account differences in race and income levels in specific areas.
+
+$$y_{i} \sim Bin(n_{i}, p_{i})$$
+
+$$log(\frac{p_{i}}{1-p_{i}}) = \beta_{i} + \delta_{i} * time_{j} + \sum_{e=1}^{5} \sigma_{e} * income_{i} * perwhite_{e}$$
+
+$$\beta_{i} \sim N(0, \tau_{0})$$
+$$\delta_{i} \sim N(0, \tau_{1})$$
+
+$$\sigma_{e} \ sim N(0, \tau_{2})$$
+$$\tau_{0,1,2} \sim Gamma(0.5, 0.0005)$$
+- Add graph with income and race and nonwhite percentage (Simpson's Paradox -- Model 3) -> reason for interaction term.
+
+In Figure 2, we plotted the log of per capita income vs the log of the crime rate by the non-white percentage in each zipcode. In areas with large white populations, an increase in the per capita income seems to increase the crime rate. However, when an area has a greater non-white population, the crime rate seems to fall as per capita income increases. Figure 2 seems to suggest that the relationship between income and crime differs depending on an area's demographic population. For this reason, we derived Model 2 by taking into consideration income and percentage of white people in each area.
 
 ```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
 Crime_count_log <- Model_Data %>%
@@ -374,39 +420,42 @@ ggplot(Model_Data_1, aes(x=log(per_capita_income), y=log_rate, colour=percent_no
 
 - Add maps
 ```{r, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE, echo=FALSE}
-Model2_Data <- Model_Data %>% filter(Year==2010)
-data = list(y=Model2_Data$total, n=Model2_Data$total_population, zipid=Model2_Data$id, racegr=Model2_Data$racegr, income=Model2_Data$income, ns=nrow(Model2_Data), nzip=length(unique(Model2_Data$zip)))
+Model2_Data <- Model_Data 
+data = list(y=Model2_Data$total, n=Model2_Data$total_population, time=Model2_Data$time, zipid=Model2_Data$id, racegr=Model2_Data$racegr, income=Model2_Data$income, ns=nrow(Model2_Data), nzip=length(unique(Model2_Data$zip)))
 
 #Specify the model
 crime_model_2 <- "model{
     #Data
     for(i in 1:ns) {
       y[i] ~ dbin(p[i], n[i])
-      logit(p[i]) = beta[racegr[i]] + sigma[racegr[i]]*income[i]
+      logit(p[i]) = beta[racegr[i]] + delta[racegr[i]]*time[i] + sigma[racegr[i]]*income[i] 
     }
     
     #Priors
     for(j in 1:5){
-      sigma[j] ~ dnorm(0, tau_1)
+      sigma[j] ~ dnorm(0, tau_2)
       beta[j] ~ dnorm(0, tau_0)
+      delta[j] ~ dnorm(0, tau_1)
+
     }
 
     #Hyperpriors
     tau_0 ~ dgamma(0.5, 0.0005)
     tau_1 ~ dgamma(0.5, 0.0005)
+    tau_2 ~ dgamma(0.5, 0.0005)
     
 }"
 
 #set up an algorithm to simulate the posterior by 
 #combining the model (nba_model) and data (y)
-#set the random number seed
+#set the random number seeds
 crime_jags_2 <- jags.model(textConnection(crime_model_2), data=data,
                     inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
 
 
 #simulate a sample from the posterior 
 #note that we specify both mu and tau variables
-crime_sim_2 <- coda.samples(crime_jags_2, variable.names=c("sigma", "tau_0", "beta","tau_1"), n.iter=30000, n.thin=5)
+crime_sim_2 <- coda.samples(crime_jags_2, variable.names=c("sigma", "tau_0", "beta","tau_1", "tau_2", "delta"), n.iter=30000, n.thin=5)
 
 #store the samples in a data frame:    
 crime_data_2 <- data.frame(crime_sim_2[[1]])
@@ -551,6 +600,12 @@ grid.arrange(model_2_map_v, model_2_map_nv, ncol=2)
 ```
 
 ##### Model 3
+
+Finally, the third model predicts the count of crime incidents in an area given its demographics, year, and income level. It also takes into account the interaction between income and race.
+
+Tested the predictive model by predicting crime counts in 2016 and comparing it to the actual crime counts in 2016.
+
+
 - Refer to Simpson's paradox to justify interaction term.
 
 - Discuss the parameter results
@@ -637,6 +692,7 @@ print(model_3_map)
 
 **Discuss future work that could be done on your project. What are the limitations of your current data/models/algorithms?**
 
+In the future, we are interested in examining hotspots for specific types of crime in Chicago.
 
 ### Bibliography
 
@@ -645,6 +701,8 @@ Braga, Anthony A., Andrew V. Papachristos, and David M. Hureau. 2012. “The Eff
 Law, Jane, et al. “Analyzing Hotspots of Crime Using a Bayesian Spatiotemporal Modeling Approach: A Case Study of Violent Crime in the Greater Toronto Area.” Geographical Analysis, vol. 47, no. 1, Oct. 2014, pp. 1–19.
 
 https://www.theatlantic.com/politics/archive/2017/01/chicago-homicide-spike-2016/514331/
+
+https://data.cityofchicago.org/Public-Safety/Crimes-2001-to-present/ijzp-q8t2/data
 
 
 Hierarchial Bayesian Spatial Models for Alcohol Availability, drug "hot spots"
