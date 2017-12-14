@@ -61,6 +61,8 @@ load("model_1_MCMC_samples_non-violent.Rda")
 load("model_1_MCMC_samples_violent.Rda")
 load("model_2_MCMC_samples_non-violent.Rda")
 load("model_2_MCMC_samples_violent.Rda")
+load("model_3_MCMC_samples_non-violent.Rda")
+load("model_3_MCMC_samples_violent.Rda")
 ```
 
 ```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE}
@@ -374,36 +376,23 @@ print(model_2_map)
 
 ```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
 posterior_means <- crimeV_data_2 %>% colMeans()
-
 crimeV_model_2_sigma <- Model_Data_Violent
-
-crimeV_model_2_sigma$beta <- recode(crimeV_model_2_sigma$racegr, `1`=posterior_means[1],
-                                   `2`=posterior_means[2],
-                                   `3`=posterior_means[3],
-                                   `4`=posterior_means[4],
-                                   `5`=posterior_means[5])
-crimeV_model_2_sigma$sigma <- recode(crimeV_model_2_sigma$racegr, `1`=posterior_means[6],
-                                   `2`=posterior_means[7],
-                                   `3`=posterior_means[8],
-                                   `4`=posterior_means[9],
-                                   `5`=posterior_means[10])
+crimeV_model_2_sigma$sigma <- recode(crimeV_model_2_sigma$racegr, `1`=posterior_means[start_index],
+                                   `2`=posterior_means[start_index+1],
+                                   `3`=posterior_means[start_index+2],
+                                   `4`=posterior_means[start_index+3],
+                                   `5`=posterior_means[start_index+4])
 crimeV_model_2_sigma <- crimeV_model_2_sigma %>%
   mutate(id = as.character(zip)) %>%
   right_join(zip_df, by="id")
 
 posterior_means <- crimeNV_data_2 %>% colMeans()
-
 crimeNV_model_2_sigma <- Model_Data_Nviolent
-crimeNV_model_2_sigma$beta <- recode(crimeNV_model_2_sigma$racegr, `1`=posterior_means[1],
-                                   `2`=posterior_means[2],
-                                   `3`=posterior_means[3],
-                                   `4`=posterior_means[4],
-                                   `5`=posterior_means[5])
-crimeNV_model_2_sigma$sigma <- recode(crimeNV_model_2_sigma$racegr, `1`=posterior_means[6],
-                                   `2`=posterior_means[7],
-                                   `3`=posterior_means[8],
-                                   `4`=posterior_means[9],
-                                   `5`=posterior_means[10])
+crimeNV_model_2_sigma$sigma <- recode(crimeNV_model_2_sigma$racegr, `1`=posterior_means[start_index],
+                                   `2`=posterior_means[start_index+1],
+                                   `3`=posterior_means[start_index+2],
+                                   `4`=posterior_means[start_index+3],
+                                   `5`=posterior_means[start_index+4])
 crimeNV_model_2_sigma <- crimeNV_model_2_sigma %>%
   mutate(id = as.character(zip)) %>%
   right_join(zip_df, by="id")
@@ -440,63 +429,6 @@ Tested the predictive model by predicting crime counts in 2016 and comparing it 
 
 - Add map
 
-```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
-train_data <- Model_Data %>%
-  filter(Year != 2016)
-temp <- train_data %>% filter(!duplicated(zipid))
-#project income onto percent white vector
-decomp <- qr(cbind(temp$income, temp$percent_white, temp$income*temp$percent_white))
-Q <- qr.Q(decomp)
-R <- qr.R(decomp)
-data = list(ns=nrow(train_data), 
-            y=train_data$total, 
-            n=train_data$total_population,
-            time=train_data$time, 
-            nzip=length(unique(train_data$zipid)), 
-            zipid=train_data$zipid, 
-            incomezip=Q[,1], 
-            whitezip=Q[,2],
-            interactionzip = Q[,3])
-```
-
-```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
-#Specify the model
-crime_model_3 <- "model{
-    #Data
-    for(i in 1:ns) {
-      y[i] ~ dbin(p[i], n[i])
-      logit(p[i]) = beta[zipid[i]] + delta[zipid[i]]*time[i] 
-    }
-    
-    #Priors
-    beta0 ~ dnorm(0, 1/1000^2)
-    delta0 ~ dnorm(0, 1/1000^2)
-    for(i in 1:nzip){
-      beta[i] ~ dnorm(beta0 + sigma[2]*whitezip[i] + sigma[3]*interactionzip[i] + sigma[1]*incomezip[i], tau_0)
-      delta[i] ~ dnorm(delta0, tau_1)
-    }
-    for(i in 1:3){
-      sigma[i] ~ dnorm(0, 1/1000^2)
-    }
-    tau_0 ~ dgamma(0.5, 0.0005)
-    tau_1 ~ dgamma(0.5, 0.0005)
-    
-}"
-
-#set up an algorithm to simulate the posterior by 
-#combining the model (nba_model) and data (y)
-#set the random number seed
-crime_jags_3 <- jags.model(textConnection(crime_model_3), data=data,
-                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
-
-
-#simulate a sample from the posterior 
-#note that we specify both mu and tau variables
-crime_sim_3 <- coda.samples(crime_jags_3, variable.names=c("beta","delta", "sigma"), n.iter=60000)
-
-#store the samples in a data frame:    
-crime_data_3 <- data.frame(crime_sim_3[[1]])
-```
 
 ```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
 crime_data_3 <- crime_data_3[20000:nrow(crime_data_3), ]
@@ -516,8 +448,6 @@ predicted_crime_count <- model_3_predictor(crime_data_3_sum, test_data$income, t
 actual_crime_count <- test_data$total 
 crime_count_diff <- predicted_crime_count - actual_crime_count
 
-zip <- readOGR(dsn="Boundaries - ZIP Codes", layer="geo_export_e1262361-5c82-45ee-8427-ef228e06dc4a")
-zip_df <- fortify(zip, region = "zip")
 crime_model_3_count_diff <- left_join(zip_df, data.frame(id=as.character(unique(test_data$zip)), crime_difference=crime_count_diff), by='id')
 head(crime_model_3_count_diff)
 ```
@@ -613,6 +543,10 @@ crimeV_data_1 <- data.frame(crimeV_sim_1[[1]])
 crimeNV_data_1 <- data.frame(crimeNV_sim_1[[1]])
 
 #save data
+#save(crime_sim_1, file="model_1_MCMC_sim_train.Rda")
+#save(crime_data_1, file="model_1_MCMC_samples_train.Rda")
+#save(crimeV_sim_1, file="model_1_MCMC_sim_violent.Rda")
+#save(crimeV_data_1, file="model_1_MCMC_samples_violent.Rda")
 #save(crimeNV_sim_1, file="model_1_MCMC_sim_non-violent.Rda")
 #save(crimeNV_data_1, file="model_1_MCMC_samples_non-violent.Rda")
 ```
@@ -632,7 +566,7 @@ data.2 = list(y=train_data$total,
             raceid = temp$racegr,
             incomezip = temp$income)
 
-temp.V <- Model_Data_Nviolent %>% filter(!duplicated(zipid))
+temp.V <- Model_Data_Violent %>% filter(!duplicated(zipid))
 temp.NV <- Model_Data_Nviolent %>% filter(!duplicated(zipid))
 
 data.V.2 = list(y=Model_Data_Violent$total, 
@@ -707,11 +641,116 @@ crimeV_data_2 <- data.frame(crimeV_sim_2[[1]])
 crimeNV_data_2 <- data.frame(crimeNV_sim_2[[1]])
 
 #save data
+# save(crime_sim_2, file="model_2_MCMC_sim_train.Rda")
+# save(crime_data_2, file="model_2_MCMC_samples_train.Rda")
 # save(crimeV_sim_2, file="model_2_MCMC_sim_violent.Rda")
 # save(crimeV_data_2, file="model_2_MCMC_samples_violent.Rda")
 # save(crimeNV_sim_2, file="model_2_MCMC_sim_non-violent.Rda")
 # save(crimeNV_data_2, file="model_2_MCMC_samples_non-violent.Rda")
 ```
 
+#### Crime Model 3
 
+```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+temp <- train_data %>% filter(!duplicated(zipid))
+#orthogonalize income, and interaction of income and percent white since they may correlate
+decomp <- qr(cbind(temp$income, temp$percent_white, temp$income*temp$percent_white))
+Q <- qr.Q(decomp)
+R <- qr.R(decomp)
+data.3 = list(ns=nrow(train_data), 
+            y=train_data$total, 
+            n=train_data$total_population,
+            time=train_data$time, 
+            nzip=length(unique(train_data$zipid)), 
+            zipid=train_data$zipid, 
+            incomezip=Q[,1], 
+            whitezip=Q[,2],
+            interactionzip = Q[,3])
+
+temp <- Model_Data_Violent %>% filter(!duplicated(zipid))
+#orthogonalize income, and interaction of income and percent white since they may correlate
+decomp <- qr(cbind(temp$income, temp$percent_white, temp$income*temp$percent_white))
+Q <- qr.Q(decomp)
+R <- qr.R(decomp)
+data.V.3 = list(ns=nrow(Model_Data_Violent), 
+            y=Model_Data_Violent$total, 
+            n=Model_Data_Violent$total_population,
+            time=Model_Data_Violent$time, 
+            nzip=length(unique(Model_Data_Violent$zipid)), 
+            zipid=Model_Data_Violent$zipid, 
+            incomezip=Q[,1], 
+            whitezip=Q[,2],
+            interactionzip = Q[,3])
+
+temp <- Model_Data_Nviolent %>% filter(!duplicated(zipid))
+#orthogonalize income, and interaction of income and percent white since they may correlate
+decomp <- qr(cbind(temp$income, temp$percent_white, temp$income*temp$percent_white))
+Q <- qr.Q(decomp)
+R <- qr.R(decomp)
+data.NV.3 = list(ns=nrow(Model_Data_Nviolent), 
+            y=Model_Data_Nviolent$total, 
+            n=Model_Data_Nviolent$total_population,
+            time=Model_Data_Nviolent$time, 
+            nzip=length(unique(Model_Data_Nviolent$zipid)), 
+            zipid=Model_Data_Nviolent$zipid, 
+            incomezip=Q[,1], 
+            whitezip=Q[,2],
+            interactionzip = Q[,3])
+```
+
+
+```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+#Specify the model
+crime_model_3 <- "model{
+    #Data
+    for(i in 1:ns) {
+      y[i] ~ dbin(p[i], n[i])
+      logit(p[i]) = beta[zipid[i]] + delta[zipid[i]]*time[i] 
+    }
+    
+    #Priors
+    beta0 ~ dnorm(0, 1/1000^2)
+    delta0 ~ dnorm(0, 1/1000^2)
+    for(i in 1:nzip){
+      beta[i] ~ dnorm(beta0 + sigma[1]*incomezip[i] + sigma[2]*whitezip[i] + sigma[3]*interactionzip[i], tau_0)
+      delta[i] ~ dnorm(delta0, tau_1)
+    }
+    for(i in 1:3){
+      sigma[i] ~ dnorm(0, 1/1000^2)
+    }
+    tau_0 ~ dgamma(0.5, 0.0005)
+    tau_1 ~ dgamma(0.5, 0.0005)
+    
+}"
+
+#set up an algorithm to simulate the posterior by 
+#combining the model (nba_model) and data (y)
+#set the random number seed
+crime_jags_3 <- jags.model(textConnection(crime_model_3), data=data.3,
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+crimeV_jags_3 <- jags.model(textConnection(crime_model_3), data=data.V.3,
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+crimeNV_jags_3 <- jags.model(textConnection(crime_model_3), data=data.NV.3,
+                    inits=list(.RNG.name="base::Wichmann-Hill", .RNG.seed=1989))
+
+
+#simulate a sample from the posterior 
+#note that we specify both mu and tau variables
+crime_sim_3 <- coda.samples(crime_jags_3, variable.names=c("beta", "beta0","delta","delta0", "sigma", "tau_0", "tau_1"), n.iter=30000)
+crimeV_sim_3 <- coda.samples(crimeV_jags_3, variable.names=c("beta", "beta0","delta","delta0", "sigma", "tau_0", "tau_1"), n.iter=30000)
+crimeNV_sim_3 <- coda.samples(crimeNV_jags_3, variable.names=c("beta", "beta0","delta","delta0", "sigma", "tau_0", "tau_1"), n.iter=30000)
+
+#store the samples in a data frame:    
+crime_data_3 <- data.frame(crime_sim_3[[1]])
+crimeV_data_3 <- data.frame(crimeV_sim_3[[1]])
+crimeNV_data_3 <- data.frame(crimeNV_sim_3[[1]])
+
+#save data
+# save(crime_sim_3, file="model_3_MCMC_sim_train.Rda")
+# save(crime_data_3, file="model_3_MCMC_samples_train.Rda")
+# save(crimeV_sim_3, file="model_3_MCMC_sim_violent.Rda")
+# save(crimeV_data_3, file="model_3_MCMC_samples_violent.Rda")
+# save(crimeNV_sim_3, file="model_3_MCMC_sim_non-violent.Rda")
+# save(crimeNV_data_3, file="model_3_MCMC_samples_non-violent.Rda")
+```
 
