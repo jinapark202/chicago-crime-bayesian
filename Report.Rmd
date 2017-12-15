@@ -195,6 +195,8 @@ For this research, we obtained our data from the City of Chicago's Data Portal. 
 
 To derive our models, we used the Gibbs sampler. We checked for convergence of our models using running mean plots and the Gailman measure.
 
+We check for convergence of all of our models using a combination of visual indicators using running mean plots and trace plots of parameters, a statistics called Gelman-Rubin diagnostic (which if is close to 1.0 suggests convergence), and effective sample size. These can be accessed using functions running_mean_plot() in MacBayes package and gelman.diag and effectiveSize in package coda. Upon checking the diagnostics for convergence, we observed autocorrelation between our parameters and reparametrized our models by meaning centering and orthogonalizing correlated predictors. We ran all of our models for 30,000 iterations, and discard the first 5000 iterations to calculate the posterior means (todo). Posterior means are checked for statistical significant at the 95% interval.
+
 ###### Overview of Models
 
 Figure 3 plots the relationship between the log of the crime rate and year for zipcodes in Chicago. It shows a slight downward trend in the log of crime rates as the years increase. Since it is possible that overall crime rates might have a negative, linear trend over time, we incorporate a time trend in our models.
@@ -227,21 +229,26 @@ Crime_count_log <- Crime_count_log_calc %>%
 ggplot(Crime_count_log, aes(x=year, y=crime_count_log, colour=zip)) + geom_point() + geom_line() + labs(title="Crime Rate Over Time", y="Log of Crime Rate", x="Year", color="Zipcodes")
 ```
 
+The figure above shows the trend in log of crime rate over time. Thought there is a lot of noise, we think it is reasonable to model log of crime rate as a linear function of time, and that each zipcode seeme to have a different slope and intercept.
+
 ##### Model 1
 
 In our first model, we predict crime hot spots in Chicago is a simple model that incorporates a time trend.
 
-$$y_{ij} \sim Bin(n_{ij}, p_{ij})$$
-$$log(\frac{p_{ij}}{1-p_{ij}}) = \beta_{i} + \delta_{i}* time_{j}$$
-$$\beta_{i} \sim N(0, \tau_{0})$$
-$$\delta_{i} \sim N(0, \tau_{1})$$
+$$y_{ij} \mid p_{ij}, \beta_0,\beta_{i1}, \delta_0,\delta_{i1}, \tau_0, \tau_1 \sim Bin(p_{ij}, n_{ij})$$ 
+where $i=\{1,...,58\}, j=\{1,...,5\}$
+$$log(\frac{p_{ij}}{1-p_{ij}}) \mid \beta_0, \beta_{i1}, \delta_0,\delta_{i1}, \tau_0, \tau_1 = \beta_{i} + \delta_{i}* time_{j}$$
+$$\beta_{i} \mid \beta_0, \tau_0 \sim N(\beta_0, \tau_{0})$$
+$$\delta_{i} \mid \delta_0, \tau_1 \sim N(\delta_0, \tau_{1})$$
+$$\beta_0 \sim N(0, \frac{1}{1000^2})$$
+$$\delta_0 \sim N(0, \frac{1}{1000^2})$$
 $$\tau_{0,1} \sim Gamma(0.5, 0.0005)$$
 
-In this model, $y_{ij}$ is the observed crime count in zipcode $i$ and year $j$, where $p_{ij}$ is the probability of a person being involved in a crime and $n_{ij}$ represents the total population. It is modeled with a Binomial distribution because a person is either involved in a crime incident or not involved in a crime incident. 
+In this model, $y_{ij}$ is the observed crime count in zipcode $i$ and year $j$, where $p_{ij}$ is the probability of a person being involved in a crime, or the inherent crime rate, and $n_{ij}$ represents the total population of zipcode {i} and year {j}. For our analysis, we assume that population and other demographics information of each zipcode remain unchanged from the 2010 Census. The number of crime count is modeled with a Binomial distribution because a person is either involved in a crime incident or not involved in a crime incident. 
 
-$log(\frac{p_{ij}}{1-p_{ij}})$ represents the log odds of the inherent crime rate in zipcode $i$ and year $j$. The log odds is a function of $\beta_{i}$, which is the intercept for each zipcode $i$ in Chicago, $\delta_{i}$, the crime differential growth over time in zipcode $i$, and time.
+$log(\frac{p_{ij}}{1-p_{ij}})$ represents the log odds of the inherent crime rate in zipcode $i$ and year $j$. The log odds is a linear function of time with $\beta_{i}$, which is the intercept for each zipcode $i$ in Chicago, $\delta_{i}$, the crime differential growth over time in zipcode $i$, and time. Thus, we assume here that each zipcode has a different change in crime rate over time.
 
-The prior distributions of $\beta$ and $\sigma$ are normally distributed with a mean of zero and a precision of $\tau$. $\tau$, which is modeled with a Gamma distribution, has a standard deviation of roughly 63. This signifies that $\tau$ is a vague prior given that the grand mean of $\beta_{i}$ and $\delta_{i}$ are approximately -7.45 and -0.065.
+The prior distributions of $\beta_i$ are normally distributed with a mean of $\beta_0$, the grand intercept, and a precision of $\tau_0$. Similarly, prior distributions of $\delta_i$ are normally distributed with a mean $\delta_0$, the grand time trend, and precision $\tau_1$. Precisions $\tau_{0,1}$ are modeled with a Gamma distribution. The mean of this Gamma distribution is 0.00025 equivalent to a mean standard deviation of 63 for $\beta_i, \delta_i$'s normal distributions. This signifies that $\tau$ is a vague prior given that the grand mean of $\beta_{i}$ and $\delta_{i}$ are approximately -7.49 and -0.066. The priors for $\beta_0, \delta_0$ are also vague with mean at 0 and standard deviation 1000.
 
 ```{r, include=FALSE, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
 
@@ -311,15 +318,21 @@ The map of violent crimes shows greater areas of increasing crime differential g
 
 In our second model, we examine changes in the crime rate while taking into account differences in race and income levels in specific areas.
 
-$$y_{i} \sim Bin(n_{i}, p_{i})$$
+$$y_{ij} \mid p_{ij}, \beta_0,\beta_{i}, \delta_0,\delta_{i}, \sigma_e, \tau_0, \tau_1, \tau_2 \sim Bin(p_{ij}, n_{ij})$$
+where $i=\{1,...,58\}, j=\{1,...,5\}$
+$$log(\frac{p_{ij}}{1-p_{ij}}) \mid \beta_0,\beta_{i}, \delta_0,\delta_{i}, \sigma_e, \tau_0, \tau_1, \tau_2 = \beta_{i} + \delta_{i} * time_{j}$$
 
-$$log(\frac{p_{i}}{1-p_{i}}) = \beta_{i} + \delta_{i} * time_{j} + \sum_{e=1}^{5} \sigma_{e} * income_{i} * perwhite_{e}$$
+$$\beta_{i} \mid \beta_0, \sigma_e, \tau_0, \tau_2 \sim N( \beta_0 + \sum_{e=1}^{5} \sigma_{e} * income_{i} * perwhite_{e}, \tau_{0})$$
+$$\delta_{i} \mid \delta_0, \tau_1 \sim N(\delta_0, \tau_{1})$$
+$$\beta_0 \sim N(0, \frac{1}{1000^2})$$
+$$\delta_0 \sim N(0, \frac{1}{1000^2})$$
 
-$$\beta_{i} \sim N(0, \tau_{0})$$
-$$\delta_{i} \sim N(0, \tau_{1})$$
-
-$$\sigma_{e} \ sim N(0, \tau_{2})$$
+$$\sigma_{e} \mid \tau_2 \sim N(0, \tau_{2})$$
+for $e=\{1,...,5\}$
 $$\tau_{0,1,2} \sim Gamma(0.5, 0.0005)$$
+
+Model 2 is similar to model 1 except that it takes into account income and demographics information of each zipcode. As we have seen in a graph earlier, the relationship between income and log crime rate seems to be different for areas with different demographics information. Here, we decide to discretize our demographic variable into five groups depending on percentage of white living in a zipcode. Here is a summary of the groups: (what each means, how many observations in each group). Variable $perwhite_e$ is a categorical variable that indicate which group a zipcode is classified as based on its demographics. Parameter $\sigma_e$ allows for each group to have a different relationship between log odds crime rate with increase in income. We provide vague priors for all the parameters as in model 1.
+
 - Add graph with income and race and nonwhite percentage (Simpson's Paradox -- Model 3) -> reason for interaction term.
 
 In Figure 2, we plotted the log of per capita income vs the log of the crime rate by the non-white percentage in each zipcode. In areas with large white populations, an increase in the per capita income seems to increase the crime rate. However, when an area has a greater non-white population, the crime rate seems to fall as per capita income increases. Figure 2 seems to suggest that the relationship between income and crime differs depending on an area's demographic population. For this reason, we derived Model 2 by taking into consideration income and percentage of white people in each area.
@@ -425,6 +438,17 @@ Tested the predictive model by predicting crime counts in 2016 and comparing it 
 
 - Refer to Simpson's paradox to justify interaction term.
 
+- The model
+
+$$y_{ij} \mid p_{ij}, \beta_0, \beta_{i}, \delta_0, \delta_{i}, \sigma_1, \sigma_2, \sigma_3, \tau_0, \tau_1 \sim Bin(p_{ij}, n_{ij})$$
+where $i=\{1,...,58\}, j=\{1,...,5\}$
+$$log(\frac{p_{ij}}{1-p_{ij}}) \mid \beta_0, \beta_{i}, \delta_0, \delta_{i}, \sigma_1, \sigma_2, \sigma_3, \tau_0, \tau_1 = \beta_{i} + \delta_{i} * time_{j}$$
+$$\beta_i \mid \beta_0, \sigma_1, \sigma_2, \sigma_3, \tau_0 \sim N(\beta_0 + \sigma_2*income_i + \sigma_1*perwhite^{+}_i + \sigma_3*(perwhite*income)^{+}_i, \tau_0)$$
+$$\delta_i \mid \delta_{i1}, \tau_1 \sim N(\delta_0, \tau_1)$$
+$$\sigma_{1,2,3} \sim N(0, \frac{1}{1000^2})$$
+$$\tau_{0,1} \sim Gamma(0.5, 0.0005)$$
+
+Alternative to discretizing the demographic variable (i.e. percent white), we can also model the crime rate with an interaction term between the income and percentage white. However, one might suspect that income and percentage white have high correlation. In fact, their correlation is 0.72. To correct for colinearity between predictors, we orthogonalize the predictors by creating a new predictor $\perwhite^{+}$ that is only the portion of the original predictor that cannot be explained by $income$, and similary $(\perwhite*income)^{+}$ for the portion of the interaction term not already explained by $income$ and $perwhite$. All priors for our other parameters are vague.
 - Discuss the parameter results
 
 - Add map
@@ -433,9 +457,6 @@ Tested the predictive model by predicting crime counts in 2016 and comparing it 
 ```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
 crime_data_3 <- crime_data_3[20000:nrow(crime_data_3), ]
 crime_data_3_sum <- as.data.frame(colMeans(crime_data_3))
-
-test_data <- Model_Data %>%
-  filter(Year == 2016)
 
 model_3_predictor <- function(param, income, percent_nonwhite, year, population){
    c <- (param[1,1] + param[2,1] * year + param[3,1] * income + param[4,1] * percent_nonwhite + param[5,1] * percent_nonwhite * income)
@@ -469,6 +490,8 @@ print(model_3_map)
 **Discuss future work that could be done on your project. What are the limitations of your current data/models/algorithms?**
 
 In the future, we are interested in examining hotspots for specific types of crime in Chicago.
+
+Change color scale for violent and non-violent crime.
 
 ### Bibliography
 
