@@ -388,7 +388,7 @@ In all areas of Chicago, the number of violent crime increases over time as per 
 Although the number of violent crimes in areas with large non-white populations are growing, the number of non-violent crimes are decreasing in these areas over time as per capita income increases. In areas with white populations greater than 20%, the number of non-violent crimes are increasing over time as per capita income increases. The bright orange areas, in particular, where the white populations are between 60-80%, face the greatest increases in the number of non-violent crimes as income rises. According to our model, all of these effects are considered significant at the 5% level.
 
 ```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
-posterior_means <- crimeV_data_2 %>% colMeans()
+posterior_means <- crimeV_data_2[5000:nrow(crimeV_data_2),] %>% colMeans()
 crimeV_model_2_sigma <- Model_Data_Violent
 crimeV_model_2_sigma$sigma <- recode(crimeV_model_2_sigma$racegr, `1`=posterior_means[start_index],
                                    `2`=posterior_means[start_index+1],
@@ -487,7 +487,11 @@ In general, the crime rate in Chicago has decreased from 2010-2015. However, whe
 
 In the future, we are interested in examining hot spots for specific types of crime in Chicago. For instance, how are hot spots different for homicides compared to petty theft? Are certain ethnic or income groups more likely to commit certain crimes than others?
 
+<<<<<<< HEAD
 In some plots, it would be easier to see the difference between rate of change of violent and nonviolent crimes if the maps have the same color scale. We would also like to indicate where particular groups are on the map.
+=======
+In some plots, it would be easier to see the difference between rate of change of violent and nonvioent crimes if the maps have the same color scale.
+>>>>>>> 0c98fa09e8c80ea063afd8216b42917bb85900ad
 
 We used zipcodes in our analysis due to its familiarity to general audiences. We could potentially repeat the same analysis using tract data since tracts tend to have more consistent boundaries, similar populations, and is the official unit by which the U.S. Census data are collected. 
 
