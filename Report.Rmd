@@ -199,7 +199,7 @@ We check for convergence of all of our models using a combination of visual indi
 
 ###### Overview of Models
 
-Figure 3 plots the relationship between the log of the crime rate and year for zipcodes in Chicago. It shows a slight downward trend in the log of crime rates as the years increase. Since it is possible that overall crime rates might have a negative, linear trend over time, we incorporate a time trend in our models.
+Figure 3 plots the relationship between the log of the crime rate and year for zipcodes in Chicago. It shows a slight downward trend in the log of crime rates as the years increase. Since it is possible that overall crime rates might have a negative, linear trend over time, we incorporate a time trend in our models. Thought there is a lot of noise, we think it is reasonable for each zipcode to have a different slope and intercept.
 
 ```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE, fig.width=15, fig.height=15, fig.align="center"}
 Crime_count <- Model_Data %>%
@@ -229,7 +229,7 @@ Crime_count_log <- Crime_count_log_calc %>%
 ggplot(Crime_count_log, aes(x=year, y=crime_count_log, colour=zip)) + geom_point() + geom_line() + labs(title="Crime Rate Over Time", y="Log of Crime Rate", x="Year", color="Zipcodes")
 ```
 
-The figure above shows the trend in log of crime rate over time. Thought there is a lot of noise, we think it is reasonable to model log of crime rate as a linear function of time, and that each zipcode seeme to have a different slope and intercept.
+
 
 ##### Model 1
 
@@ -276,7 +276,7 @@ model_1_map <- model_1_map + cleanup + scale_fill_gradient(low = "blue", high = 
 print(model_1_map)
 ```
 
-Chicago is particularly well-known for its high level of violent crime including homicides. In fact, in 2016, the number of homicides in Chicago increased 58% from the previous year. For this reason, we divided our data into two groups, violent and non-violent crimes, to examine whether hot spots of violent crimes differ from hot spots of non-violent crimes. We classified the following types of crime as 'violent': robbery, battery, burglary, assault, homicide, sex offense, criminal sexual assault, and arson. All other crime types in our data are considered 'non-violent'. 
+Chicago is particularly well-known for its high level of violent crime including homicides. In fact, in 2016, the number of homicides in Chicago increased 58% from the previous year. For this reason, we divided our data into two groups, violent and non-violent crimes, to examine whether hot spots of violent crimes differ from hot spots of non-violent crimes. We classified the following types of crime as 'violent': robbery, battery, burglary, assault, homicide, sex offense, criminal sexual assault, and arson. All other crime types in our data are considered 'non-violent'. The violent and nonviolent crimes make up roughly half of the observations (428 incidents of violent crime and 451 incidents of nonviolent crimes).
 
 ```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
 #Making a dataframe for visualization of map
@@ -319,25 +319,6 @@ The maps above indicate that both violent and non-violent crimes in Chicago are 
 
 ##### Model 2
 
-In our second model, we examine changes in the crime rate while taking into account differences in race and income levels in specific areas.
-
-$$y_{ij} \mid p_{ij}, \beta_0,\beta_{i}, \delta_0,\delta_{i}, \sigma_e, \tau_0, \tau_1, \tau_2 \sim Bin(p_{ij}, n_{ij})$$
-where $i=\{1,...,58\}, j=\{1,...,5\}$
-$$log(\frac{p_{ij}}{1-p_{ij}}) \mid \beta_0,\beta_{i}, \delta_0,\delta_{i}, \sigma_e, \tau_0, \tau_1, \tau_2 = \beta_{i} + \delta_{i} * time_{j}$$
-
-$$\beta_{i} \mid \beta_0, \sigma_e, \tau_0, \tau_2 \sim N( \beta_0 + \sum_{e=1}^{5} \sigma_{e} * income_{i} * perwhite_{e}, \tau_{0})$$
-$$\delta_{i} \mid \delta_0, \tau_1 \sim N(\delta_0, \tau_{1})$$
-$$\beta_0 \sim N(0, \frac{1}{1000^2})$$
-$$\delta_0 \sim N(0, \frac{1}{1000^2})$$
-
-$$\sigma_{e} \mid \tau_2 \sim N(0, \tau_{2})$$
-for $e=\{1,...,5\}$
-$$\tau_{0,1,2} \sim Gamma(0.5, 0.0005)$$
-
-Model 2 is similar to model 1 except that it takes into account income and demographics information of each zipcode. As we have seen in a graph earlier, the relationship between income and log crime rate seems to be different for areas with different demographics information. Here, we decide to discretize our demographic variable into five groups depending on percentage of white living in a zipcode. Here is a summary of the groups: (what each means, how many observations in each group). Variable $perwhite_e$ is a categorical variable that indicate which group a zipcode is classified as based on its demographics. Parameter $\sigma_e$ allows for each group to have a different relationship between log odds crime rate with increase in income. We provide vague priors for all the parameters as in model 1.
-
-- Add graph with income and race and nonwhite percentage (Simpson's Paradox -- Model 3) -> reason for interaction term.
-
 In Figure 2, we plotted the log of per capita income vs the log of the crime rate by the non-white percentage in each zipcode. In areas with large white populations, an increase in the per capita income seems to increase the crime rate. However, when an area has a greater non-white population, the crime rate seems to fall as per capita income increases. Figure 2 seems to suggest that the relationship between income and crime differs depending on an area's demographic population. For this reason, we derived Model 2 by taking into consideration income and percentage of white people in each area.
 
 ```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
@@ -356,7 +337,24 @@ Model_Data_1 <- Model_Data %>%
 ggplot(Model_Data_1, aes(x=log(per_capita_income), y=log_rate, colour=percent_nonwhite)) + geom_point() + labs(x="Log of Per Capita Income", y="Log of Crime Rate", title="Relationship between Per Capita Income and Crime Rate", color="Nonwhite Percentage") 
 ```
 
-- Talk about groupings of race
+
+In our second model, we examine changes in the crime rate while taking into account differences in race and income levels in specific areas.
+
+
+$$y_{ij} \mid p_{ij}, \beta_0,\beta_{i}, \delta_0,\delta_{i}, \sigma_e, \tau_0, \tau_1, \tau_2 \sim Bin(p_{ij}, n_{ij})$$
+where $i=\{1,...,58\}, j=\{1,...,5\}$
+$$log(\frac{p_{ij}}{1-p_{ij}}) \mid \beta_0,\beta_{i}, \delta_0,\delta_{i}, \sigma_e, \tau_0, \tau_1, \tau_2 = \beta_{i} + \delta_{i} * time_{j}$$
+
+$$\beta_{i} \mid \beta_0, \sigma_e, \tau_0, \tau_2 \sim N( \beta_0 + \sum_{e=1}^{5} \sigma_{e} * income_{i} * perwhite_{e}, \tau_{0})$$
+$$\delta_{i} \mid \delta_0, \tau_1 \sim N(\delta_0, \tau_{1})$$
+$$\beta_0 \sim N(0, \frac{1}{1000^2})$$
+$$\delta_0 \sim N(0, \frac{1}{1000^2})$$
+
+$$\sigma_{e} \mid \tau_2 \sim N(0, \tau_{2})$$
+for $e=\{1,...,5\}$
+$$\tau_{0,1,2} \sim Gamma(0.5, 0.0005)$$
+
+Model 2 is similar to model 1 except that it takes into account income and demographics information of each zipcode. As we have seen in a graph earlier, the relationship between income and log crime rate seems to be different for areas with different demographics information. Here, we decide to discretize our demographic variable into five groups depending on percentage of white living in a zipcode. Here is a summary of the groups: (what each means, how many observations in each group). Variable $perwhite_e$ is a categorical variable that indicate which group a zipcode is classified as based on its demographics. Parameter $\sigma_e$ allows for each group to have a different relationship between log odds crime rate with increase in income. We provide vague priors for all the parameters as in model 1.
 
 
 ```{r, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE, echo=FALSE}
@@ -435,11 +433,6 @@ grid.arrange(model_2_map_v, model_2_map_nv, ncol=2)
 
 Finally, the third model predicts the count of crime incidents in an area given its demographics, year, and income level. It also takes into account the interaction between income and race.
 
-Tested the predictive model by predicting crime counts in 2016 and comparing it to the actual crime counts in 2016.
-
-
-- Refer to Simpson's paradox to justify interaction term.
-
 - The model
 
 $$y_{ij} \mid p_{ij}, \beta_0, \beta_{i}, \delta_0, \delta_{i}, \sigma_1, \sigma_2, \sigma_3, \tau_0, \tau_1 \sim Bin(p_{ij}, n_{ij})$$
@@ -452,6 +445,8 @@ $$\tau_{0,1} \sim Gamma(0.5, 0.0005)$$
 
 Alternative to discretizing the demographic variable (i.e. percent white), we can also model the crime rate with an interaction term between the income and percentage white. However, one might suspect that income and percentage white have high correlation. In fact, their correlation is 0.72. To correct for colinearity between predictors, we orthogonalize the predictors by creating a new predictor $\perwhite^{+}$ that is only the portion of the original predictor that cannot be explained by $income$, and similary $(\perwhite*income)^{+}$ for the portion of the interaction term not already explained by $income$ and $perwhite$. All priors for our other parameters are vague.
 - Discuss the parameter results
+
+Tested the predictive model by predicting crime counts in 2016 and comparing it to the actual crime counts in 2016.
 
 ```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
 crime_data_3 <- crime_data_3[20000:nrow(crime_data_3), ]
@@ -489,7 +484,11 @@ The map above shows the difference in crime count between the predicted crime co
 
 In the future, we are interested in examining hotspots for specific types of crime in Chicago.
 
-Change color scale for violent and non-violent crime.
+In some plots, it would be easier to see the difference between rate of change of violent and nonvioent crimes if the maps have the same color scale. 
+
+We used zipcode here for our analysis because of its familiarity to general audiences. We could potentially do the same analysis for tract data since tract tend to have more consistent boundaries, similar population, and is the official unit by which the U.S. Census data are collected. 
+
+Our data is geographical. Though we have random effects for each zipcode in the analysis, we can also expect to have autocorrelated random effects between zipcodes that are adjacent. Adding a random effect term to account for this could help smooth out dramatic differences in change of crime rate in adjacent locations. 
 
 ### Bibliography
 
