@@ -384,7 +384,7 @@ In all areas of Chicago, the number of violent crime increases over time as per 
 Although the number of violent crimes in areas with large non-white populations are growing, the number of non-violent crimes are decreasing in these areas over time as per capita income increases. In areas with white populations greater than 20%, the number of non-violent crimes are increasing over time as per capita income increases. The bright orange areas, in particular, where the white populations are between 60-80%, face the greatest increases in the number of non-violent crimes as income rises.
 
 ```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
-posterior_means <- crimeV_data_2 %>% colMeans()
+posterior_means <- crimeV_data_2[5000:nrow(crimeV_data_2),] %>% colMeans()
 crimeV_model_2_sigma <- Model_Data_Violent
 crimeV_model_2_sigma$sigma <- recode(crimeV_model_2_sigma$racegr, `1`=posterior_means[start_index],
                                    `2`=posterior_means[start_index+1],
@@ -481,7 +481,7 @@ The map above shows the difference in crime count between the predicted crime co
 
 In the future, we are interested in examining hotspots for specific types of crime in Chicago.
 
-In some plots, it would be easier to see the difference between rate of change of violent and nonvioent crimes if the maps have the same color scale. 
+In some plots, it would be easier to see the difference between rate of change of violent and nonvioent crimes if the maps have the same color scale.
 
 We used zipcode here for our analysis because of its familiarity to general audiences. We could potentially do the same analysis for tract data since tract tend to have more consistent boundaries, similar population, and is the official unit by which the U.S. Census data are collected. 
 
