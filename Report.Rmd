@@ -16,7 +16,6 @@ Chicago currently leads the United States with the greatest number of homicides 
 Law, et al. (2014) identifies hot spots and overall trends of violent crime in the Greater Toronto Area using a Bayesian spatiotemporal modeling approach. Although frequentists define hot spots as areas with high crime rates that are also surrounded by other high-crime areas for one time period, Bayesian statistics allow us to examine how hot spots change over time (Law, et al. 2014). For this reason, we apply Bayesian methods to examine how hot spots in Chicago change year over year. 
 
 
-
 ### Methods and Results
 
 **Discuss your methodology in detail (e.g. the structure of your Bayesian model, your prior/posterior understanding, your Markov chain algorithm).**
@@ -233,7 +232,7 @@ The figure above shows the trend in log of crime rate over time. Thought there i
 
 ##### Model 1
 
-In our first model, we predict crime hot spots in Chicago is a simple model that incorporates a time trend.
+In our first model, we predict crime hot spots in Chicago using a simple model that incorporates a time trend.
 
 $$y_{ij} \mid p_{ij}, \beta_0,\beta_{i1}, \delta_0,\delta_{i1}, \tau_0, \tau_1 \sim Bin(p_{ij}, n_{ij})$$ 
 where $i=\{1,...,58\}, j=\{1,...,5\}$
@@ -244,13 +243,11 @@ $$\beta_0 \sim N(0, \frac{1}{1000^2})$$
 $$\delta_0 \sim N(0, \frac{1}{1000^2})$$
 $$\tau_{0,1} \sim Gamma(0.5, 0.0005)$$
 
-In this model, $y_{ij}$ is the observed crime count in zipcode $i$ and year $j$, where $p_{ij}$ is the probability of a person being involved in a crime, or the inherent crime rate, and $n_{ij}$ represents the total population of zipcode {i} and year {j}. For our analysis, we assume that population and other demographics information of each zipcode remain unchanged from the 2010 Census. The number of crime count is modeled with a Binomial distribution because a person is either involved in a crime incident or not involved in a crime incident. 
+In this model, $y_{ij}$ is the observed crime count in zipcode $i$ and year $j$. $p_{ij}$ is the probability of a person being involved in a crime, or the inherent crime rate, and $n_{ij}$ represents the total population of zipcode $i$ and year $j$. For our analysis, we assume that population and other demographics information of each zipcode remain unchanged from the 2010 Census. The number of crime count is modeled with a Binomial distribution because a person is either involved in a crime incident or not involved in a crime incident. 
 
-$log(\frac{p_{ij}}{1-p_{ij}})$ represents the log odds of the inherent crime rate in zipcode $i$ and year $j$. The log odds is a linear function of time with $\beta_{i}$, which is the intercept for each zipcode $i$ in Chicago, $\delta_{i}$, the crime differential growth over time in zipcode $i$, and time. Thus, we assume here that each zipcode has a different change in crime rate over time.
+$log(\frac{p_{ij}}{1-p_{ij}})$ represents the log odds of the inherent crime rate in zipcode $i$ and year $j$. The log odds is a linear function of time with $\beta_{i}$, which is the intercept for each zipcode $i$ in Chicago, $\delta_{i}$, the crime differential growth over time in zipcode $i$, and time. Thus, we assume that each zipcode has a different change in crime rate over time.
 
-The prior distributions of $\beta_i$ are normally distributed with a mean of $\beta_0$, the grand intercept, and a precision of $\tau_0$. Similarly, prior distributions of $\delta_i$ are normally distributed with a mean $\delta_0$, the grand time trend, and precision $\tau_1$. Precisions $\tau_{0,1}$ are modeled with a Gamma distribution. The mean of this Gamma distribution is 0.00025 equivalent to a mean standard deviation of 63 for $\beta_i, \delta_i$'s normal distributions. This signifies that $\tau$ is a vague prior given that the grand mean of $\beta_{i}$ and $\delta_{i}$ are approximately -7.49 and -0.066. The priors for $\beta_0, \delta_0$ are also vague with mean at 0 and standard deviation 1000.
-
-**This is the zipcode specific time trend for log odds crime rate, the mean change is delta0 = -0.066 every new year **
+The prior distributions of $\beta_i$ are normally distributed with a mean of $\beta_0$, the grand intercept, and a precision of $\tau_0$. Similarly, prior distributions of $\delta_i$ are normally distributed with a mean $\delta_0$, the grand time trend, and precision $\tau_1$. Precisions $\tau_{0,1}$ are modeled with a Gamma distribution. The mean of this Gamma distribution is 0.00025, which is equivalent to a mean standard deviation of 63 for $\beta_i, \delta_i$'s normal distributions. This signifies that $\tau$ is a vague prior given that the grand mean of $\beta_{i}$ and $\delta_{i}$ are approximately -7.49 and -0.066. The priors for $\beta_0$ and  $\delta_0$ are also vague with a mean of 0 and standard deviation of 1000.
 
 ```{r, include=FALSE, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE, fig.width=15, fig.height=15, fig.align="center"}
 
@@ -264,8 +261,6 @@ zip_df <- fortify(zip, region = "zip")
 crime_model_1_delta <- left_join(zip_df, data.frame(id=as.character(unique(train_data$zip)), delta=crime_model_1_mean), by='id')
 ```
 
-Using Model 1, the map above shows the crime differential growth by zipcode. In all areas of Chicago, the overall number of crime decreases over time. The crime hot spots are shown in areas highlighted in bright orange where crime is not decreasing as much as other areas over time.
-
 ```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE, fig.width=15, fig.height=15, fig.align="center"}
 #Make a map
 model_1_map <- ggplot() 
@@ -275,6 +270,8 @@ model_1_map <- model_1_map + labs(x="", y="", title=paste("Crime Differential Gr
 model_1_map <- model_1_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
 print(model_1_map)
 ```
+
+Using Model 1, the map above shows the crime differential growth by zipcode. In all areas of Chicago, the overall number of crime decreases over time. The crime hot spots are shown in areas highlighted in bright orange where crime is not decreasing over time as much as other areas.
 
 Chicago is particularly well-known for its high level of violent crime including homicides. In fact, in 2016, the number of homicides in Chicago increased 58% from the previous year. For this reason, we divided our data into two groups, violent and non-violent crimes, to examine whether hot spots of violent crimes differ from hot spots of non-violent crimes. We classified the following types of crime as 'violent': robbery, battery, burglary, assault, homicide, sex offense, criminal sexual assault, and arson. All other crime types in our data are considered 'non-violent'. 
 
@@ -334,7 +331,7 @@ $$\sigma_{e} \mid \tau_2 \sim N(0, \tau_{2})$$
 for $e=\{1,...,5\}$
 $$\tau_{0,1,2} \sim Gamma(0.5, 0.0005)$$
 
-Model 2 is similar to model 1 except that it takes into account income and demographics information of each zipcode. As we have seen in a graph earlier, the relationship between income and log crime rate seems to be different for areas with different demographics information. Here, we decide to discretize our demographic variable into five groups depending on percentage of white living in a zipcode. Here is a summary of the groups: (what each means, how many observations in each group). Variable $perwhite_e$ is a categorical variable that indicate which group a zipcode is classified as based on its demographics. Parameter $\sigma_e$ allows for each group to have a different relationship between log odds crime rate with increase in income. We provide vague priors for all the parameters as in model 1.
+Model 2 is similar to model 1 except that it takes into account income and demographics information of each zipcode. As we have seen in a graph earlier, the relationship between income and log crime rate seems to be different for areas with different demographics information. Here, we decide to discretize our demographic variable into five groups depending on percentage of white people living in a zipcode. $perwhite_e$ is a categorical variable that indicates that categorizes zipcodes based on its demographics. The parameter $\sigma_e$ allows for each group to have a different relationship between log odds crime rate with increase in income. We provide vague priors for all the parameters as in model 1.
 
 - Add graph with income and race and nonwhite percentage (Simpson's Paradox -- Model 3) -> reason for interaction term.
 
