@@ -79,7 +79,7 @@ cleanup <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_
 zip <- readOGR(dsn="Boundaries - ZIP Codes", layer="geo_export_e1262361-5c82-45ee-8427-ef228e06dc4a")
 ```
 
-```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE, fig.width=15, fig.height=15, fig.align="center"}
 # Make density map of crime incidents in year 2010, 2013, 2016 to see if there is time trend
 Crime_2010 <- Crime %>% filter(Year == 2010)
 gg2010 <- ggplot()
@@ -250,7 +250,9 @@ $log(\frac{p_{ij}}{1-p_{ij}})$ represents the log odds of the inherent crime rat
 
 The prior distributions of $\beta_i$ are normally distributed with a mean of $\beta_0$, the grand intercept, and a precision of $\tau_0$. Similarly, prior distributions of $\delta_i$ are normally distributed with a mean $\delta_0$, the grand time trend, and precision $\tau_1$. Precisions $\tau_{0,1}$ are modeled with a Gamma distribution. The mean of this Gamma distribution is 0.00025 equivalent to a mean standard deviation of 63 for $\beta_i, \delta_i$'s normal distributions. This signifies that $\tau$ is a vague prior given that the grand mean of $\beta_{i}$ and $\delta_{i}$ are approximately -7.49 and -0.066. The priors for $\beta_0, \delta_0$ are also vague with mean at 0 and standard deviation 1000.
 
-```{r, include=FALSE, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+**This is the zipcode specific time trend for log odds crime rate, the mean change is delta0 = -0.066 every new year **
+
+```{r, include=FALSE, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE, fig.width=15, fig.height=15, fig.align="center"}
 
 #Create a data frame containing posterior means for each zipcode
 n = length(unique(train_data$zip))
@@ -260,7 +262,11 @@ for (i in 1:n) {
 }
 zip_df <- fortify(zip, region = "zip")
 crime_model_1_delta <- left_join(zip_df, data.frame(id=as.character(unique(train_data$zip)), delta=crime_model_1_mean), by='id')
+```
 
+Using Model 1, the map above shows the crime differential growth by zipcode. In all areas of Chicago, the overall number of crime decreases over time. The crime hot spots are shown in areas highlighted in bright orange where crime is not decreasing as much as other areas over time.
+
+```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE, fig.width=15, fig.height=15, fig.align="center"}
 #Make a map
 model_1_map <- ggplot() 
 model_1_map <- model_1_map +  geom_polygon(data = crime_model_1_delta, aes(x=long, y=lat, group=group, fill=delta), color = "black", size=0.2) 
@@ -269,8 +275,6 @@ model_1_map <- model_1_map + labs(x="", y="", title=paste("Crime Differential Gr
 model_1_map <- model_1_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
 print(model_1_map)
 ```
-
-**This is the zipcode specific time trend for log odds crime rate, the mean change is delta0 = -0.066 every new year **
 
 Chicago is particularly well-known for its high level of violent crime including homicides. In fact, in 2016, the number of homicides in Chicago increased 58% from the previous year. For this reason, we divided our data into two groups, violent and non-violent crimes, to examine whether hot spots of violent crimes differ from hot spots of non-violent crimes. We classified the following types of crime as 'violent': robbery, battery, burglary, assault, homicide, sex offense, criminal sexual assault, and arson. All other crime types in our data are considered 'non-violent'. 
 
@@ -293,14 +297,13 @@ crimeV_model_1_delta <- left_join(zip_df, data.frame(id=as.character(unique(Mode
 crimeNV_model_1_delta <- left_join(zip_df, data.frame(id=as.character(unique(Model_Data_Nviolent$zip)), delta=crimeNV_model_1_mean), by='id')
 ```
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
+```{r, message=FALSE, warning=FALSE, echo=FALSE, comment=NA, fig.width=15, fig.height=15, fig.align="center"}
 model_1_map_v <- ggplot() 
 model_1_map_v <- model_1_map_v +  geom_polygon(data = crimeV_model_1_delta, aes(x=long, y=lat, group=group, fill=delta), color = "black", size=0.2) 
 model_1_map_v <- model_1_map_v + coord_map() 
 model_1_map_v <- model_1_map_v + labs(x="", y="", title=paste("Violent Crime Differential Growth by Zipcode"), fill="Trend over Time", caption="Model 1")
 model_1_map_v <- model_1_map_v + cleanup + scale_fill_gradient(low = "blue", high = "orange")
 ```
-
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE, comment=NA, fig.width=15, fig.height=15, fig.align="center"}
 model_1_map_nv <- ggplot() 
@@ -312,7 +315,7 @@ model_1_map_nv <- model_1_map_nv + cleanup + scale_fill_gradient(low = "blue", h
 grid.arrange(model_1_map_v, model_1_map_nv, ncol=2)
 ```
 
-The map of violent crimes shows greater areas of increasing crime differential growth compared to non-violent crimes over time. This suggests that overall, violent crimes are increasing in Chicago more than non-violent crimes. However, in general, it appears that many areas of Chicago are facing lower crime, both violent and non-violent, with time.
+The maps above indicate that both violent and non-violent crimes in Chicago are decreasing over time. It is interesting to note that some areas experience similar decreases in both violent and non-violent crimes over time. However, while the bright blue area for violent crimes indicates a large decrease in crime over time, the non-violent map indicates a lower decline in non-violent crime over time. 
 
 ##### Model 2
 
@@ -349,14 +352,11 @@ Model_Data_1 <- Model_Data %>%
   right_join(Crime_count_log, by="zip") 
 ```
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
+```{r, message=FALSE, warning=FALSE, echo=FALSE, comment=NA, fig.width=15, fig.height=15, fig.align="center"}
 ggplot(Model_Data_1, aes(x=log(per_capita_income), y=log_rate, colour=percent_nonwhite)) + geom_point() + labs(x="Log of Per Capita Income", y="Log of Crime Rate", title="Relationship between Per Capita Income and Crime Rate", color="Nonwhite Percentage") 
 ```
 
 - Talk about groupings of race
-
-- Add maps
-
 
 
 ```{r, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE, echo=FALSE}
@@ -373,7 +373,9 @@ crime_model_2_sigma <- crime_model_2_sigma %>%
   right_join(zip_df, by="id")
 ```
 
-```{r, cache=TRUE, message=FALSE, warning=FALSE, echo=FALSE}
+The map below shows the crime differential growth based on income and demographics. The area highlighted in blue represents areas with less than 20% white popoulations. In these areas, the number of crime decreases over time as per capita income increases. The bright orange areas represents areas with between 60-80% white populations. In these areas, crime increases over time as per capita income increases. This map follows Figure 2 above which shows a negative relationship between crime rate and per capita income for areas with a large non-white percentage.
+
+```{r, cache=TRUE, message=FALSE, warning=FALSE, echo=FALSE, fig.width=15, fig.height=15, fig.align="center"}
 model_2_map <- ggplot() 
 model_2_map <- model_2_map +  geom_polygon(data = crime_model_2_sigma, aes(x=long, y=lat, group=group, fill=sigma), color = "black", size=0.2) 
 model_2_map <- model_2_map + coord_map() 
@@ -382,10 +384,9 @@ model_2_map <- model_2_map + cleanup + scale_fill_gradient(low = "blue", high = 
 print(model_2_map)
 ```
 
-- Talk about maps
+In all areas of Chicago, the number of violent crime increases over time as per capita income increases. However, the extent to which the crime differential growth increases depends on the demographics of the area. In areas where the white population falls below 20%, the number of crime increases the most as per capita income increases, as highlighted in bright orange. Areas in dark blue, on the other hand, represent areas with between 60-80% white populations. These areas face lower increases in crime as a result of higher income. This indicates that areas with large non-white populations are facing greater increases in violent crimes compared to areas with large white populations.
 
-- Add maps for violent vs non-violent crimes
-
+Although the number of violent crimes in areas with large non-white populations are growing, the number of non-violent crimes are decreasing in these areas over time as per capita income increases. In areas with white populations greater than 20%, the number of non-violent crimes are increasing over time as per capita income increases. The bright orange areas, in particular, where the white populations are between 60-80%, face the greatest increases in the number of non-violent crimes as income rises.
 
 ```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
 posterior_means <- crimeV_data_2 %>% colMeans()
@@ -411,7 +412,7 @@ crimeNV_model_2_sigma <- crimeNV_model_2_sigma %>%
   right_join(zip_df, by="id")
 ```
 
-```{r, echo=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+```{r, echo=FALSE, cache=TRUE, message=FALSE, warning=FALSE, fig.width=15, fig.height=15, fig.align="center"}
 model_2_map_v <- ggplot() 
 model_2_map_v <- model_2_map_v +  geom_polygon(data = crimeV_model_2_sigma, aes(x=long, y=lat, group=group, fill=sigma), color = "black", size=0.2) 
 model_2_map_v <- model_2_map_v + coord_map() 
@@ -428,6 +429,7 @@ model_2_map_nv <- model_2_map_nv + cleanup + scale_fill_gradient(low = "blue", h
 
 grid.arrange(model_2_map_v, model_2_map_nv, ncol=2)
 ```
+
 
 ##### Model 3
 
@@ -451,9 +453,6 @@ $$\tau_{0,1} \sim Gamma(0.5, 0.0005)$$
 Alternative to discretizing the demographic variable (i.e. percent white), we can also model the crime rate with an interaction term between the income and percentage white. However, one might suspect that income and percentage white have high correlation. In fact, their correlation is 0.72. To correct for colinearity between predictors, we orthogonalize the predictors by creating a new predictor $\perwhite^{+}$ that is only the portion of the original predictor that cannot be explained by $income$, and similary $(\perwhite*income)^{+}$ for the portion of the interaction term not already explained by $income$ and $perwhite$. All priors for our other parameters are vague.
 - Discuss the parameter results
 
-- Add map
-
-
 ```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
 crime_data_3 <- crime_data_3[20000:nrow(crime_data_3), ]
 crime_data_3_sum <- as.data.frame(colMeans(crime_data_3))
@@ -473,7 +472,7 @@ crime_model_3_count_diff <- left_join(zip_df, data.frame(id=as.character(unique(
 head(crime_model_3_count_diff)
 ```
 
-```{r, echo=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+```{r, echo=FALSE, cache=TRUE, message=FALSE, warning=FALSE, fig.width=15, fig.height=15, fig.align="center"}
 model_3_map <- ggplot() 
 model_3_map <- model_3_map +  geom_polygon(data = crime_model_3_count_diff, aes(x=long, y=lat, group=group, fill=crime_difference), color = "black", size=0.2) 
 model_3_map <- model_3_map + coord_map() 
@@ -482,8 +481,7 @@ model_3_map <- model_3_map + cleanup + scale_fill_gradient(low = "blue", high = 
 print(model_3_map)
 ```
 
-- Discuss interpretation of map
-
+The map above shows the difference in crime count between the predicted crime count and the actual crime count in 2016. In areas highlighted in dark purple, the predicted crime count is much lower than the actual crime count in 2016. It is interesting to note that the difference in crime count decreases in all zipcodes relative to the actual crime count observed in 2016. This suggests that crime in 2016 might be greater than the current trend and therefore, our predictions are underestimating the true crime count.
 
 ### Next Steps
 
@@ -511,7 +509,7 @@ Hierarchial Bayesian Spatial Models for Alcohol Availability, drug "hot spots"
 Here is the code we used to run MCMC on our three models using the whole dataset, one with only violent and one with only nonviolent crimes
 
 #### Crime Model 1
-```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE, comment=NA}
+```{r, eval=FALSE, echo=TRUE, message=FALSE, warning=FALSE, comment=NA}
 #Data
 #we only use train data for all crime type model to test its prediction later
 data = list(y=train_data$total, n=train_data$total_population, time=train_data$time, zipid=train_data$zipid, ns=length(train_data$total), nzip=length(unique(train_data$id)))
@@ -521,7 +519,7 @@ data.V = list(y=Model_Data_Violent$total, n=Model_Data_Violent$total_population,
 data.NV = list(y=Model_Data_Nviolent$total, n=Model_Data_Nviolent$total_population, time=Model_Data_Nviolent$time, zipid=Model_Data_Nviolent$zipid, ns=length(Model_Data_Nviolent$total), nzip=length(unique(Model_Data_Nviolent$id)))
 ```
 
-```{r, include=FALSE, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+```{r, eval=FALSE, echo=TRUE, message=FALSE, warning=FALSE, cache=TRUE}
 #Specify the model
 crime_model_1 <- "model{
     #Data
@@ -575,8 +573,7 @@ crimeNV_data_1 <- data.frame(crimeNV_sim_1[[1]])
 ```
 
 #### Crime Model 2
-
-```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
 temp <- train_data %>% filter(!duplicated(zipid))
 data.2 = list(y=train_data$total, 
             n=train_data$total_population, 
@@ -615,7 +612,7 @@ data.NV.2 = list(y=Model_Data_Nviolent$total,
             incomezip = temp.NV$income)
 ```
 
-```{r, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
 #Specify the model
 crime_model_2 <- "model{
     #Data
@@ -673,8 +670,7 @@ crimeNV_data_2 <- data.frame(crimeNV_sim_2[[1]])
 ```
 
 #### Crime Model 3
-
-```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
 temp <- train_data %>% filter(!duplicated(zipid))
 #orthogonalize income, and interaction of income and percent white since they may correlate
 decomp <- qr(cbind(temp$income, temp$percent_white, temp$income*temp$percent_white))
@@ -722,7 +718,7 @@ data.NV.3 = list(ns=nrow(Model_Data_Nviolent),
 ```
 
 
-```{r, echo=FALSE, include=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
 #Specify the model
 crime_model_3 <- "model{
     #Data
