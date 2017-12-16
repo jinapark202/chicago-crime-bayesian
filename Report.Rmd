@@ -239,11 +239,11 @@ In our first model, we predict crime hot spots in Chicago using a simple model t
 $$y_{ij} \mid p_{ij}, \beta_0,\beta_{i1}, \delta_0,\delta_{i1}, \tau_0, \tau_1 \sim Bin(p_{ij}, n_{ij})$$ 
 where $i=\{1,...,58\}, j=\{1,...,5\}$
 $$log(\frac{p_{ij}}{1-p_{ij}}) \mid \beta_0, \beta_{i1}, \delta_0,\delta_{i1}, \tau_0, \tau_1 = \beta_{i} + \delta_{i}* time_{j}$$
-$$\beta_{i} \mid \beta_0, \tau_0 \sim N(\beta_0, \tau_{0})$$
-$$\delta_{i} \mid \delta_0, \tau_1 \sim N(\delta_0, \tau_{1})$$
-$$\beta_0 \sim N(0, \frac{1}{1000^2})$$
-$$\delta_0 \sim N(0, \frac{1}{1000^2})$$
-$$\tau_{0,1} \sim Gamma(0.5, 0.0005)$$
+$$\beta_{i} \mid \beta_0, \tau_0 \sim N(\beta_0, \tau_{0}^{-1})$$
+$$\delta_{i} \mid \delta_0, \tau_1 \sim N(\delta_0, \tau_{1}^{-1})$$
+$$\beta_0 \sim N(0, 1000^2)$$
+$$\delta_0 \sim N(0, 1000^2)$$
+$$\tau_{0}, \tau_{1} \sim Gamma(0.5, 0.0005)$$
 
 In this model, $y_{ij}$ is the observed crime count in zipcode $i$ and year $j$. $p_{ij}$ is the probability of a person being involved in a crime, or the inherent crime rate, and $n_{ij}$ represents the total population of zipcode $i$ and year $j$. For our analysis, we assume that population and other demographics information of each zipcode remain unchanged from the 2010 Census. The number of crime count is modeled with a Binomial distribution because a person is either involved in a crime incident or not involved in a crime incident. 
 
@@ -347,12 +347,12 @@ $$log(\frac{p_{ij}}{1-p_{ij}}) \mid \beta_0,\beta_{i}, \delta_0,\delta_{i}, \sig
 
 $$\beta_{i} \mid \beta_0, \sigma_e, \tau_0, \tau_2 \sim N( \beta_0 + \sum_{e=1}^{5} \sigma_{e} * income_{i} * perwhite_{e}, \tau_{0})$$
 $$\delta_{i} \mid \delta_0, \tau_1 \sim N(\delta_0, \tau_{1})$$
-$$\beta_0 \sim N(0, \frac{1}{1000^2})$$
-$$\delta_0 \sim N(0, \frac{1}{1000^2})$$
+$$\beta_0 \sim N(0, 1000^2)$$
+$$\delta_0 \sim N(0, 1000^2)$$
 
 $$\sigma_{e} \mid \tau_2 \sim N(0, \tau_{2})$$
 for $e=\{1,...,5\}$
-$$\tau_{0,1,2} \sim Gamma(0.5, 0.0005)$$
+$$\tau_{0}, \tau_{1}, \tau_{2} \sim Gamma(0.5, 0.0005)$$
 
 Model 2 is similar to model 1 except that it takes into account income and demographics information of each zipcode. As we have seen in a graph earlier, the relationship between income and log crime rate seems to be different for areas with different demographics information. Here, we decide to discretize our demographic variable into five groups depending on percentage of white living in a zipcode. Here is a summary of the groups: (what each means, how many observations in each group). Variable $perwhite_e$ is a categorical variable that indicate which group a zipcode is classified as based on its demographics. Parameter $\sigma_e$ allows for each group to have a different relationship between log odds crime rate with increase in income. We provide vague priors for all the parameters as in Model 1.
 
@@ -443,10 +443,11 @@ Finally, the third model predicts the count of crime incidents in an area given 
 $$y_{ij} \mid p_{ij}, \beta_0, \beta_{i}, \delta_0, \delta_{i}, \sigma_1, \sigma_2, \sigma_3, \tau_0, \tau_1 \sim Bin(p_{ij}, n_{ij})$$
 where $i=\{1,...,58\}, j=\{1,...,5\}$
 $$log(\frac{p_{ij}}{1-p_{ij}}) \mid \beta_0, \beta_{i}, \delta_0, \delta_{i}, \sigma_1, \sigma_2, \sigma_3, \tau_0, \tau_1 = \beta_{i} + \delta_{i} * time_{j}$$
-$$\beta_i \mid \beta_0, \sigma_1, \sigma_2, \sigma_3, \tau_0 \sim N(\beta_0 + \sigma_2*income_i + \sigma_1*perwhite^{+}_i + \sigma_3*(perwhite*income)^{+}_i, \tau_0)$$
-$$\delta_i \mid \delta_{i1}, \tau_1 \sim N(\delta_0, \tau_1)$$
-$$\sigma_{1,2,3} \sim N(0, \frac{1}{1000^2})$$
-$$\tau_{0,1} \sim Gamma(0.5, 0.0005)$$
+$$\beta_i \mid \beta_0, \sigma_1, \sigma_2, \sigma_3, \tau_0 \sim N(\beta_0 + \sigma_2*income_i + \sigma_1*perwhite^{+}_i + \sigma_3*(perwhite*income)^{+}_i, \tau_0^{-1})$$
+$$\delta_i \mid \delta_{i1}, \tau_1 \sim N(\delta_0, \tau_1^{-1})$$
+$$\sigma_1, \sigma_2, \sigma_3 \sim N(0, \frac{1}{1000^2})$$
+$$\beta_0, \delta_0 \sim N(0, 1000^2)$$
+$$\tau_0, \tau_1 \sim Gamma(0.5, 0.0005)$$
 
 Alternative to discretizing the demographic variable (i.e. percent white), we can also model the crime rate with an interaction term between the income and percentage white. However, one might suspect that income and percentage white have high correlation. In fact, their correlation is 0.72. To correct for colinearity between predictors, we orthogonalize the predictors by creating a new predictor $perwhite^{+}$ that is only the portion of the original predictor that cannot be explained by $income$, and similary $(perwhite*income)^{+}$ for the portion of the interaction term not already explained by $income$ and $perwhite$. All priors for our other parameters are vague.
 
