@@ -436,7 +436,7 @@ $$\beta_i \mid \beta_0, \sigma_1, \sigma_2, \sigma_3, \tau_0 \sim N(\beta_0 + \s
 
 
 $$\delta_i \mid \delta_{i}, \tau_1 \sim N(\delta_0, \tau_1^{-1})$$
-$$\sigma_1, \sigma_2, \sigma_3 \sim N(0, \frac{1}{1000^2})$$
+$$\sigma_1, \sigma_2, \sigma_3 \sim N(0, 1000^2)$$
 $$\beta_0, \delta_0 \sim N(0, 1000^2)$$
 $$\tau_0, \tau_1 \sim Gamma(0.5, 0.0005)$$
 where $i=\{1,...,58\}, j=\{1,...,5\}$
@@ -684,9 +684,12 @@ crimeNV_data_2 <- data.frame(crimeNV_sim_2[[1]])
 ```
 
 #### Crime Model 3
+
 ```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
+#making data for model 3
 temp <- train_data %>% filter(!duplicated(zipid))
-#orthogonalize income, and interaction of income and percent white since they may correlate
+
+#orthogonalize income, and interaction of income and percent white since they are correlated
 decomp <- qr(cbind(temp$income, temp$percent_white, temp$income*temp$percent_white))
 Q <- qr.Q(decomp)
 R <- qr.R(decomp)
@@ -701,7 +704,7 @@ data.3 = list(ns=nrow(train_data),
             interactionzip = Q[,3])
 
 temp <- Model_Data_Violent %>% filter(!duplicated(zipid))
-#orthogonalize income, and interaction of income and percent white since they may correlate
+#orthogonalize income, and interaction of income and percent white since they are correlated
 decomp <- qr(cbind(temp$income, temp$percent_white, temp$income*temp$percent_white))
 Q <- qr.Q(decomp)
 R <- qr.R(decomp)
@@ -716,7 +719,7 @@ data.V.3 = list(ns=nrow(Model_Data_Violent),
             interactionzip = Q[,3])
 
 temp <- Model_Data_Nviolent %>% filter(!duplicated(zipid))
-#orthogonalize income, and interaction of income and percent white since they may correlate
+#orthogonalize income, and interaction of income and percent white since they are correlated
 decomp <- qr(cbind(temp$income, temp$percent_white, temp$income*temp$percent_white))
 Q <- qr.Q(decomp)
 R <- qr.R(decomp)
@@ -787,3 +790,285 @@ crimeNV_data_3 <- data.frame(crimeNV_sim_3[[1]])
 # save(crimeNV_data_3, file="model_3_MCMC_samples_non-violent.Rda")
 ```
 
+
+--------------------------------------------------------
+
+#### Visualization Code
+
+```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
+# Load the necessary datasets
+Crime <- read.csv('Crime_sample_2010_to_2017.csv')
+Model_Data <- read.csv("Crime_models_data.csv")
+Model_Data_Violent <- read.csv("Crime_models_violent_data.csv")
+Model_Data_Nviolent <- read.csv("Crime_models_nonviolent_data.csv")
+
+train_data <- Model_Data %>% filter(Year < 2016)
+test_data <- Model_Data %>% filter(Year==2016)
+
+load("model_1_MCMC_samples_train.Rda")
+load("model_2_MCMC_samples_train.Rda")
+load("model_3_MCMC_samples_train.Rda")
+load("model_1_MCMC_samples_non-violent.Rda")
+load("model_1_MCMC_samples_violent.Rda")
+load("model_2_MCMC_samples_non-violent.Rda")
+load("model_2_MCMC_samples_violent.Rda")
+load("model_3_MCMC_samples_non-violent.Rda")
+load("model_3_MCMC_samples_violent.Rda")
+```
+
+##### Figure 1:
+
+```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
+# Map cleanup: remove grey background grids in maps visualizations
+cleanup <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = 'white', colour = 'white'),
+        axis.line = element_line(colour = "white"),
+        axis.ticks=element_blank(), axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+```
+
+```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
+#load the shape file to make maps
+zip <- readOGR(dsn="Boundaries - ZIP Codes", layer="geo_export_e1262361-5c82-45ee-8427-ef228e06dc4a")
+```
+
+```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
+# Make density map of crime incidents in year 2010, 2013, 2016 to see if there is time trend
+Crime_2010 <- Crime %>% filter(Year == 2010)
+gg2010 <- ggplot()
+gg2010 <- gg2010 + geom_polygon(data=zip, aes(x=long, y=lat, group=group), colour="black", fill="grey90", size=0.5) 
+gg2010 <- gg2010 + stat_density2d(data=Crime_2010, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
+gg2010 <- gg2010 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
+gg2010 <- gg2010 +  coord_map("polyconic")
+gg2010 <- gg2010 + labs(x=NULL, y=NULL,
+                  subtitle=NULL,
+                  caption="2010")
+gg2010 <- gg2010 + cleanup + theme(plot.margin = unit(c(0,0,0,0), "lines"))
+
+Crime_2013 <- Crime %>% filter(Year == 2013)
+gg2013 <- ggplot()
+gg2013 <- gg2013 + geom_polygon(data=zip, aes(x=long, y=lat, group=group), colour="black", fill="grey90", size=0.5) 
+gg2013 <- gg2013 + stat_density2d(data=Crime_2013, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
+gg2013 <- gg2013 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
+gg2013 <- gg2013 +  coord_map("polyconic")
+gg2013 <- gg2013 + labs(x=NULL, y=NULL,
+                  subtitle=NULL,
+                  caption="2013")
+gg2013 <- gg2013 + cleanup + theme(plot.margin = unit(c(0,0,0,0), "lines"))
+
+
+Crime_2016 <- Crime %>% filter(Year == 2016)
+gg2016 <- ggplot()
+gg2016 <- gg2016 + geom_polygon(data=zip, aes(x=long, y=lat, group=group), colour="black", fill="grey90", size=0.5) 
+gg2016 <- gg2016 + stat_density2d(data=Crime_2016, show.legend=F, aes(x=Longitude, y=Latitude, fill=..level.., alpha=..level..), geom="polygon", size=2, bins=10)
+gg2016 <- gg2016 + scale_fill_gradient(low="deepskyblue2", high="firebrick1", name="Distribution")
+gg2016 <- gg2016 +  coord_map("polyconic")
+gg2016 <- gg2016 + labs(x=NULL, y=NULL,
+                  subtitle=NULL,
+                  caption="2016")
+gg2016 <- gg2016 + cleanup + theme(plot.margin = unit(c(0,0,0,0), "lines"))
+
+grid.arrange(gg2010, gg2013, gg2016, ncol=3, heights=15, top=textGrob("Figure 1: Concentration of Crime in Chicago", gp=gpar(fontsize=20, fontface="bold")))
+```
+
+##### Figure 2:
+
+```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
+# Visualizations of demographics data in 2010
+data(df_pop_zip)
+data(df_zip_demographics)
+
+zip_percent_white <- df_zip_demographics[c("region", "percent_white")]
+colnames(zip_percent_white)[2] <- "value"
+
+zip_percent_black <- df_zip_demographics[c("region", "percent_black")]
+colnames(zip_percent_black)[2] <- "value"
+
+zip_percent_asian <- df_zip_demographics[c("region", "percent_asian")]
+colnames(zip_percent_asian)[2] <- "value"
+
+zip_percent_hispanic <- df_zip_demographics[c("region", "percent_hispanic")]
+colnames(zip_percent_hispanic)[2] <- "value"
+
+zip_per_capita_income <- df_zip_demographics[c("region", "per_capita_income")]
+colnames(zip_per_capita_income)[2] <- "value"
+
+zip_median_rent <- df_zip_demographics[c("region", "median_rent")]
+colnames(zip_median_rent)[2] <- "value"
+
+zip_median_age <- df_zip_demographics[c("region", "median_age")]
+colnames(zip_median_age)[2] <- "value"
+
+data(zip.regions)
+chi_nap_elg <- subset(zip.regions, zip.regions$cbsa.title=="Chicago-Naperville-Elgin, IL-IN-WI")
+cook_county <- subset(chi_nap_elg, chi_nap_elg$county.name == "cook")
+cook_fips <- cook_county$county.fips.numeric
+```
+
+##### Figure 3:
+
+```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
+pop_map <- zip_choropleth(df_pop_zip, 
+               county_zoom = cook_fips, 
+               title="Total Population") + coord_map()
+
+white_pop_map <- zip_choropleth(zip_percent_white, 
+               county_zoom = cook_fips, 
+               title="White Population") + coord_map()
+
+black_pop_map <- zip_choropleth(zip_percent_black, 
+               county_zoom = cook_fips, 
+               title="Black Population") + coord_map()
+
+asian_pop_map <- zip_choropleth(zip_percent_asian, 
+               county_zoom = cook_fips, 
+               title="Asian Population") + coord_map()
+
+hisp_pop_map <- zip_choropleth(zip_percent_hispanic, 
+               county_zoom = cook_fips, 
+               title="Hispanic Population") + coord_map()
+
+income_map <- zip_choropleth(zip_per_capita_income, 
+               county_zoom = cook_fips, 
+               title="Per Capita Income") + coord_map()
+
+rent_map <- zip_choropleth(zip_median_rent, 
+               county_zoom = cook_fips, 
+               title="Median Rent") + coord_map()
+
+age_map <- zip_choropleth(zip_median_age, 
+               county_zoom = cook_fips, 
+               title="Median Age") + coord_map()
+
+grid.arrange(pop_map, white_pop_map, black_pop_map, asian_pop_map, hisp_pop_map, income_map, rent_map, age_map, ncol=3, top=textGrob("Figure 2: Demographic Maps of Chicago by Zipcode", gp=gpar(fontsize=20, fontface="bold")))
+```
+
+##### Figure 4:
+
+```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
+Crime_count <- Model_Data %>%
+  select(Year, zip, total) %>%
+  spread(key=Year, value=total)
+rownames(Crime_count) <- Crime_count$zip 
+Crime_count <- Crime_count %>% select(-zip)
+Crime_count[is.na(Crime_count)] <- 0
+
+Population <- Model_Data %>%
+  select(total_population, zip, Year) %>%
+  spread(key=Year, value=total_population) %>%
+  select('2010', zip)
+rownames(Population) <- Population$zip
+Population <- Population %>% select(-zip)
+Population[is.na(Population)] <- 0
+Population.vector <- Population$`2010`
+
+Crime_count_log_calc <- log(Crime_count/Population.vector)
+Crime_count_log <- Crime_count_log_calc %>%
+  rownames_to_column() %>%
+  gather(key=year, value=crime_count_log, -rowname) %>%
+  mutate(zip=rowname) %>%
+  select(zip, year, crime_count_log) %>%
+  mutate(year=as.numeric(year))
+
+ggplot(Crime_count_log, aes(x=year, y=crime_count_log, colour=zip)) + geom_point() + geom_line() + labs(title="Figure 3: Crime Rate Over Time", y="Log of Crime Rate", x="Year", color="Zipcodes")
+```
+
+##### Figure 5:
+
+```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
+#Create a data frame containing posterior means for each zipcode
+n = length(unique(train_data$zip))
+crime_model_1_mean <- matrix(nrow=n, ncol=1) #find posterior means of delta_i
+for (i in 1:n) {
+      crime_model_1_mean[i, ] <- mean(crime_data_1[[i+59]])
+}
+zip_df <- fortify(zip, region = "zip")
+crime_model_1_delta <- left_join(zip_df, data.frame(id=as.character(unique(train_data$zip)), delta=crime_model_1_mean), by='id')
+```
+
+```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
+#Make a map
+model_1_map <- ggplot() 
+model_1_map <- model_1_map +  geom_polygon(data = crime_model_1_delta, aes(x=long, y=lat, group=group, fill=delta), color = "black", size=0.2) 
+model_1_map <- model_1_map + coord_map() 
+model_1_map <- model_1_map + labs(x="", y="", title=paste("Figure 4: Crime Differential Growth by Zipcode"), caption="Model 1", fill="Trend over Time")
+model_1_map <- model_1_map + cleanup + scale_fill_gradient(low = "blue", high = "orange")
+print(model_1_map)
+```
+
+##### Figure 6:
+
+```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
+posterior_means <- crimeV_data_2 %>% colMeans()
+crimeV_model_2_sigma <- Model_Data_Violent
+crimeV_model_2_sigma$sigma <- recode(crimeV_model_2_sigma$racegr, `1`=posterior_means[start_index],
+                                   `2`=posterior_means[start_index+1],
+                                   `3`=posterior_means[start_index+2],
+                                   `4`=posterior_means[start_index+3],
+                                   `5`=posterior_means[start_index+4])
+crimeV_model_2_sigma <- crimeV_model_2_sigma %>%
+  mutate(id = as.character(zip)) %>%
+  right_join(zip_df, by="id")
+
+posterior_means <- crimeNV_data_2 %>% colMeans()
+crimeNV_model_2_sigma <- Model_Data_Nviolent
+crimeNV_model_2_sigma$sigma <- recode(crimeNV_model_2_sigma$racegr, `1`=posterior_means[start_index],
+                                   `2`=posterior_means[start_index+1],
+                                   `3`=posterior_means[start_index+2],
+                                   `4`=posterior_means[start_index+3],
+                                   `5`=posterior_means[start_index+4])
+crimeNV_model_2_sigma <- crimeNV_model_2_sigma %>%
+  mutate(id = as.character(zip)) %>%
+  right_join(zip_df, by="id")
+```
+
+```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
+model_2_map_v <- ggplot() 
+model_2_map_v <- model_2_map_v +  geom_polygon(data = crimeV_model_2_sigma, aes(x=long, y=lat, group=group, fill=sigma), color = "black", size=0.2) 
+model_2_map_v <- model_2_map_v + coord_map() 
+model_2_map_v <- model_2_map_v + labs(x="", y="", title=paste("Violent Crime"), fill="Trend over Income", caption="Model 2")
+model_2_map_v <- model_2_map_v + cleanup + scale_fill_gradient(low = "blue", high = "orange", limits=c(-1.2,0.8))
+```
+
+```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
+model_2_map_nv <- ggplot() 
+model_2_map_nv <- model_2_map_nv +  geom_polygon(data = crimeNV_model_2_sigma, aes(x=long, y=lat, group=group, fill=sigma), color = "black", size=0.2) 
+model_2_map_nv <- model_2_map_nv + coord_map() 
+model_2_map_nv <- model_2_map_nv + labs(x="", y="", title=paste("Non-violent Crime"), fill="Trend over Income", caption="Model 2")
+model_2_map_nv <- model_2_map_nv + cleanup + scale_fill_gradient(low = "blue", high = "orange", limits=c(-1.2,0.8))
+
+grid.arrange(model_2_map_v, model_2_map_nv, ncol=2, top=textGrob("Figure 8: Crime Differential Growth Based on Income, Demographics, and Type of Crime", gp=gpar(fontsize=20, fontface="bold")))
+```
+
+
+##### Figure 7:
+
+```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
+
+crime_data_3 <- crime_data_3[20000:nrow(crime_data_3), ]
+crime_data_3_sum <- as.data.frame(colMeans(crime_data_3))
+
+model_3_predictor <- function(param, income, percent_nonwhite, year, population){
+   c <- (param[1,1] + param[2,1] * year + param[3,1] * income + param[4,1] * percent_nonwhite + param[5,1] * percent_nonwhite * income)
+   p <- exp(c)/(1 + exp(c))
+   return(p * population)
+}
+
+predicted_crime_count <- model_3_predictor(crime_data_3_sum, test_data$income, test_data$percent_white, test_data$time, test_data$total_population)
+
+actual_crime_count <- test_data$total 
+crime_count_diff <- predicted_crime_count - actual_crime_count
+
+crime_model_3_count_diff <- left_join(zip_df, data.frame(id=as.character(unique(test_data$zip)), crime_difference=crime_count_diff), by='id')
+head(crime_model_3_count_diff)
+```
+
+```{r, eval=FALSE, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
+
+model_3_map <- ggplot() 
+model_3_map <- model_3_map +  geom_polygon(data = crime_model_3_count_diff, aes(x=long, y=lat, group=group, fill=crime_difference), color = "black", size=0.2) 
+model_3_map <- model_3_map + coord_map() 
+model_3_map <- model_3_map + labs(x="", y="", title=paste("Figure 9: Difference in Crime Count by Zipcode"), caption="Model 3", fill="Count Difference")
+model_3_map <- model_3_map + cleanup + scale_fill_gradient(low = "blue", high = "orange") + theme(plot.title = element_text(size=18))
+print(model_3_map)
+```
