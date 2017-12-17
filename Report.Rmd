@@ -314,9 +314,9 @@ model_1_map_nv <- model_1_map_nv + cleanup + scale_fill_gradient(low = "blue", h
 grid.arrange(model_1_map_v, model_1_map_nv, ncol=2, top=textGrob("Figure 5: Crime Differential Growth by Zipcode and Type of Crime", gp=gpar(fontsize=20, fontface="bold")))
 ```
 
-Figure 5 above indicates that both violent and non-violent crimes in Chicago are decreasing over time. However, non-violent crimes in Chicago decrease over time by a greater extent than violent crimes. This is indicated by a darker shade of purple for non-violent crimes in Figure 5. Specifically, odds of non-violent crime decreases by 6.9% ($\beta0 = -0.071$) each year compared to a decrease of 4.8% ($\beta0 = -0.049$) for violent crime. Again, most of the parameters in these models are statistically significant at 5% level. 
+Figure 5 above indicates that both violent and non-violent crimes in Chicago are decreasing over time. However, non-violent crimes in Chicago decrease over time by a greater extent than violent crimes. This is indicated by a darker shade of purple for non-violent crimes in Figure 5. Specifically, odds of non-violent crime decreases by 6.9% ($\beta_0 = -0.071$) each year compared to a decrease of 4.8% ($\beta_0 = -0.049$) for violent crime. Again, most of the parameters in these models are statistically significant at 5% level. 
 
-###### Incorporating Demographics
+#### Incorporating Demographics
 
 ##### Model 2
 
