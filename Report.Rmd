@@ -7,7 +7,7 @@ output: html_document
 
 ### Motivation
 
-Chicago currently leads the United States with the greatest number of homicides and violent crimes. In 2016, the number of homicides in Chicago increased 58% from the year before (Ford, 2017). Using police data from the City of Chicago's Data Portal, we examine crime hot spots in Chicago and whether crime rates differ by geographic and demographic information. In addition, we examine the hot spots for violent and non-violent crimes. Understanding crime hot spots proves advantageous to law enforcement as they can enact hot spot policing measures and other resources to reduce crime in these particular areas (Law, et al. 2014). In particular, the Bayesian approach can be used to predict changes in hot spots and crime rates over time. 
+Chicago currently leads the United States with the greatest number of homicides and violent crimes. In 2016, the number of homicides in Chicago increased 58% from the year before (Ford, 2017). Using police data from the City of Chicago's Data Portal, we examine crime hot spots in Chicago and whether crime rates differ by geographic and demographic information. In this report, we define hot spots as areas with greater increase (or smaller decrease) in crime rate over time. In addition, we examine the hot spots for violent and non-violent crimes. Understanding crime hot spots proves advantageous to law enforcement as they can better understand crime trend and create crime management strategies accordingly (Law, et al. 2014). In particular, the Bayesian approach can be used to predict hot spots at zipcode levels and crime rates over time. 
 
 ##### Literature Review 
 
