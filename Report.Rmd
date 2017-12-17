@@ -365,7 +365,7 @@ crime_model_2_sigma <- crime_model_2_sigma %>%
   right_join(zip_df, by="id")
 ```
 
-Figure 7 maps $\sigma_{e}$, which represents the relationship between violent crime rate and income. The area highlighted in blue represents areas with less than 20% white populations. In these areas, the number of crime decreases over time as per capita income increases. The bright orange areas represent areas with between 60-80% white populations. In these areas, crime increases over time as per capita income increases. This map follows closely to Figure 6 which indicates a negative relationship between crime rate and per capita income for areas with a large non-white percentage.
+Figure 7 maps $\sigma_{e}$, which represents the relationship between crime rate and income. The area highlighted in blue represents areas with less than 20% white populations. In these areas, the number of crime decreases over time as per capita income increases. The bright orange areas represent areas with between 60-80% white populations. In these areas, crime increases over time as per capita income increases. This map follows closely to Figure 6 which indicates a negative relationship between crime rate and per capita income for areas with a large non-white percentage.
 
 ```{r, cache=TRUE, message=FALSE, warning=FALSE, echo=FALSE, fig.width=15, fig.height=8, fig.align="center"}
 model_2_map <- ggplot() 
