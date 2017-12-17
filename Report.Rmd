@@ -43,6 +43,11 @@ library(gridExtra)
 
 ```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE}
 # Load data
+
+#***IMPORTANT NOTE:****
+#The files required below can be downloaded at
+#https://drive.google.com/open?id=1j-_WQ4Vngm-J-K0k1xc_tBZhSxsb0AoT
+
 Crime <- read.csv('Crime_sample_2010_to_2017.csv')
 Model_Data <- read.csv("Crime_models_data.csv")
 Model_Data_Violent <- read.csv("Crime_models_violent_data.csv")
@@ -58,8 +63,6 @@ load("model_1_MCMC_samples_non-violent.Rda")
 load("model_1_MCMC_samples_violent.Rda")
 load("model_2_MCMC_samples_non-violent.Rda")
 load("model_2_MCMC_samples_violent.Rda")
-load("model_3_MCMC_samples_non-violent.Rda")
-load("model_3_MCMC_samples_violent.Rda")
 ```
 
 ```{r, include=FALSE, message=FALSE, warning=FALSE, echo=FALSE}
@@ -545,6 +548,16 @@ library(lubridate)
 ######Reads in the original dataset downloaded from City of Chicago Data Portal
 
 ```{r, eval=FALSE, echo=TRUE, message=FALSE, warning=FALSE, comment=NA}
+
+#***IMPORTANT NOTE:****
+#The files:
+#'Crimes_-_2001_to_present.csv' 
+#'Crime_sample_2010_to_2017.csv'
+#"Crime_models_violent_data.csv"
+#"Crime_models_violent_data.csv"
+#can be downloaded at
+#https://drive.google.com/open?id=1j-_WQ4Vngm-J-K0k1xc_tBZhSxsb0AoT
+
 Crime = read.csv('Crimes_-_2001_to_present.csv')
 
 #Filter for year 2010 to present (2017) and clear some columns. Saved resulting data
