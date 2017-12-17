@@ -229,9 +229,9 @@ ggplot(Crime_count_log, aes(x=year, y=crime_count_log, colour=zip)) + geom_point
 
 In our first model, we predict crime hot spots in Chicago using a simple model that incorporates a time trend.
 
-$$y_{ij} \mid p_{ij}, \beta_0,\beta_{i1}, \delta_0,\delta_{i1}, \tau_0, \tau_1 \sim Bin(p_{ij}, n_{ij})$$ 
+$$y_{ij} \mid p_{ij}, \beta_0,\beta_{i}, \delta_0,\delta_{i}, \tau_0, \tau_1 \sim Bin(p_{ij}, n_{ij})$$ 
 
-$$log(\frac{p_{ij}}{1-p_{ij}}) \mid \beta_0, \beta_{i1}, \delta_0,\delta_{i1}, \tau_0, \tau_1 = \beta_{i} + \delta_{i}* time_{j}$$
+$$log(\frac{p_{ij}}{1-p_{ij}}) \mid \beta_0, \beta_{i}, \delta_0,\delta_{i}, \tau_0, \tau_1 = \beta_{i} + \delta_{i}* time_{j}$$
 $$\beta_{i} \mid \beta_0, \tau_0 \sim N(\beta_0, \tau_{0}^{-1})$$
 $$\delta_{i} \mid \delta_0, \tau_1 \sim N(\delta_0, \tau_{1}^{-1})$$
 $$\beta_0 \sim N(0, 1000^2)$$
@@ -365,7 +365,7 @@ crime_model_2_sigma <- crime_model_2_sigma %>%
   right_join(zip_df, by="id")
 ```
 
-Figure 7 maps $\sigma_{e}$, which represents the relationship between violent crime rate and income. The area highlighted in blue represents areas with less than 20% white populations. In these areas, the number of crime decreases over time as per capita income increases. The bright orange areas represent areas with between 60-80% white populations. In these areas, crime increases over time as per capita income increases. This map follows closely to Figure 6 which indicates a negative relationship between crime rate and per capita income for areas with a large non-white percentage.
+Figure 7 maps $\sigma_{e}$, which represents the relationship between crime rate and income. The area highlighted in blue represents areas with less than 20% white populations. In these areas, the number of crime decreases over time as per capita income increases. The bright orange areas represent areas with between 60-80% white populations. In these areas, crime increases over time as per capita income increases. This map follows closely to Figure 6 which indicates a negative relationship between crime rate and per capita income for areas with a large non-white percentage.
 
 ```{r, cache=TRUE, message=FALSE, warning=FALSE, echo=FALSE, fig.width=15, fig.height=8, fig.align="center"}
 model_2_map <- ggplot() 
@@ -435,7 +435,7 @@ $$log(\frac{p_{ij}}{1-p_{ij}}) \mid \beta_0, \beta_{i}, \delta_0, \delta_{i}, \s
 $$\beta_i \mid \beta_0, \sigma_1, \sigma_2, \sigma_3, \tau_0 \sim N(\beta_0 + \sigma_1*income_i + \sigma_2*perwhite^{+}_i + \sigma_3*(perwhite*income)^{+}_i, \tau_0^{-1})$$
 
 
-$$\delta_i \mid \delta_{i1}, \tau_1 \sim N(\delta_0, \tau_1^{-1})$$
+$$\delta_i \mid \delta_{i}, \tau_1 \sim N(\delta_0, \tau_1^{-1})$$
 $$\sigma_1, \sigma_2, \sigma_3 \sim N(0, \frac{1}{1000^2})$$
 $$\beta_0, \delta_0 \sim N(0, 1000^2)$$
 $$\tau_0, \tau_1 \sim Gamma(0.5, 0.0005)$$
