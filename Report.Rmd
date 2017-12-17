@@ -432,7 +432,9 @@ Since the correlation between income and the percentage of white population is h
 
 $$y_{ij} \mid p_{ij}, \beta_0, \beta_{i}, \delta_0, \delta_{i}, \sigma_1, \sigma_2, \sigma_3, \tau_0, \tau_1 \sim Bin(p_{ij}, n_{ij})$$
 $$log(\frac{p_{ij}}{1-p_{ij}}) \mid \beta_0, \beta_{i}, \delta_0, \delta_{i}, \sigma_1, \sigma_2, \sigma_3, \tau_0, \tau_1 = \beta_{i} + \delta_{i} * time_{j}$$
-$$\beta_i \mid \beta_0, \sigma_1, \sigma_2, \sigma_3, \tau_0 \sim N(\beta_0 + \sigma_2*income_i + \sigma_1*perwhite^{+}_i + \sigma_3*(perwhite*income)^{+}_i, \tau_0^{-1})$$
+$$\beta_i \mid \beta_0, \sigma_1, \sigma_2, \sigma_3, \tau_0 \sim N(\beta_0 + \sigma_1*income_i + \sigma_2*perwhite^{+}_i + \sigma_3*(perwhite*income)^{+}_i, \tau_0^{-1})$$
+
+
 $$\delta_i \mid \delta_{i}, \tau_1 \sim N(\delta_0, \tau_1^{-1})$$
 $$\sigma_1, \sigma_2, \sigma_3 \sim N(0, \frac{1}{1000^2})$$
 $$\beta_0, \delta_0 \sim N(0, 1000^2)$$
