@@ -103,3 +103,5 @@ Model_Data$income = scale(Model_Data$per_capita_income)[,1]
 
 # Save model data
 write.csv(Model_Data, "Crime_models_data.csv")
+#write.csv(Model_Data, "Crime_models_violent_data.csv")
+#write.csv(Model_Data, "Crime_models_nonviolent_data.csv")
