@@ -229,9 +229,9 @@ ggplot(Crime_count_log, aes(x=year, y=crime_count_log, colour=zip)) + geom_point
 
 In our first model, we predict crime hot spots in Chicago using a simple model that incorporates a time trend.
 
-$$y_{ij} \mid p_{ij}, \beta_0,\beta_{i1}, \delta_0,\delta_{i1}, \tau_0, \tau_1 \sim Bin(p_{ij}, n_{ij})$$ 
+$$y_{ij} \mid p_{ij}, \beta_0,\beta_{i}, \delta_0,\delta_{i}, \tau_0, \tau_1 \sim Bin(p_{ij}, n_{ij})$$ 
 
-$$log(\frac{p_{ij}}{1-p_{ij}}) \mid \beta_0, \beta_{i1}, \delta_0,\delta_{i1}, \tau_0, \tau_1 = \beta_{i} + \delta_{i}* time_{j}$$
+$$log(\frac{p_{ij}}{1-p_{ij}}) \mid \beta_0, \beta_{i}, \delta_0,\delta_{i}, \tau_0, \tau_1 = \beta_{i} + \delta_{i}* time_{j}$$
 $$\beta_{i} \mid \beta_0, \tau_0 \sim N(\beta_0, \tau_{0}^{-1})$$
 $$\delta_{i} \mid \delta_0, \tau_1 \sim N(\delta_0, \tau_{1}^{-1})$$
 $$\beta_0 \sim N(0, 1000^2)$$
@@ -433,7 +433,7 @@ Since the correlation between income and the percentage of white population is h
 $$y_{ij} \mid p_{ij}, \beta_0, \beta_{i}, \delta_0, \delta_{i}, \sigma_1, \sigma_2, \sigma_3, \tau_0, \tau_1 \sim Bin(p_{ij}, n_{ij})$$
 $$log(\frac{p_{ij}}{1-p_{ij}}) \mid \beta_0, \beta_{i}, \delta_0, \delta_{i}, \sigma_1, \sigma_2, \sigma_3, \tau_0, \tau_1 = \beta_{i} + \delta_{i} * time_{j}$$
 $$\beta_i \mid \beta_0, \sigma_1, \sigma_2, \sigma_3, \tau_0 \sim N(\beta_0 + \sigma_2*income_i + \sigma_1*perwhite^{+}_i + \sigma_3*(perwhite*income)^{+}_i, \tau_0^{-1})$$
-$$\delta_i \mid \delta_{i1}, \tau_1 \sim N(\delta_0, \tau_1^{-1})$$
+$$\delta_i \mid \delta_{i}, \tau_1 \sim N(\delta_0, \tau_1^{-1})$$
 $$\sigma_1, \sigma_2, \sigma_3 \sim N(0, \frac{1}{1000^2})$$
 $$\beta_0, \delta_0 \sim N(0, 1000^2)$$
 $$\tau_0, \tau_1 \sim Gamma(0.5, 0.0005)$$
