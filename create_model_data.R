@@ -22,14 +22,14 @@ library(grid)
 library(gridExtra)
 
 
-#Uncomment these lines if interested in doing the same analysis for just violent or nonviolent crimes
+##Uncomment these lines if interested in doing the same analysis for just violent or nonviolent crimes
 #violent = c("ROBBERY", "BATTERY", "BURGLARY", "ASSAULT", "HOMICIDE", "ARSON", "CRIM SEXUAL ASSAULT", "SEX OFFENSE")
 
-#To do analysis on Violent crime
+##To do analysis on Violent crime
 #Crime <- Crime %>%
 #  filter(Primary.Type %in% violent)
 
-#To do analysis on Non-violent crime
+##To do analysis on Non-violent crime
 #Crime <- Crime %>%
 #  filter(!(Primary.Type %in% violent))
 
