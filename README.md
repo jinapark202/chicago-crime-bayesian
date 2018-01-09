@@ -4,5 +4,5 @@ The project uses Bayesian statistics to analyze zip-code level trend in crime ra
 
 ## Final Report
 
-The final report can be view [here](https://rawgit.com/)
+The final report can be view [here](https://rawgit.com/jinapark22/chicago-crime-bayesian/master/Report.html)
 
