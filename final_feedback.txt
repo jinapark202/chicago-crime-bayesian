@@ -1,0 +1,44 @@
+ALICIA'S FINAL FEEDBACK
+==========================================================================================================
+
+FINAL REPORT
+
++ Analysis & Reproducibility
+
+On top of diving into challenging models, you clearly did a lot of background research on MCMC diagnostics and tips for speeding up chain convergence to the posterior.  This is really impressive and shows you really paid attention to the details.  Awesome work.
+
+Model 1: 
+
+Be sure to interpret the beta_i and delta_i terms for the audience.
+
+When interpreting the beta_0 posterior, it’s unclear what year you’re assuming.
+
+Model 2:
+
+Why do you discretize income?  You lose some info when you do this.
+
+If you use an interaction term between income and perwhite, you should also use their main effects.  For example, use “y = a + bx + cz + dx*z” not “y = a + bx*z”
+
+The definition/use of sigma is a bit confusing.  What’s sigma_5?  How do these subscripts work?
+
++ Aesthetics
+
+The existing visualizations are beautiful and the report is nicely organized.
+
++ Details
+
+Don’t confuse Bayesian and frequentist terms.  Bayesian analysis uses “credible” not “confidence” intervals.  Further, what does it mean to be “significant at the 5% level”?  This is frequentist jargon.
+
+Maps are engaging and connect events to geography.  However, you should supplement these with scatterplots (eg: crime trend vs income) which provide more specific detail about the relationships among these variables.
+
+Instead of writing out parameter estimates and credible intervals in paragraph form, include tables.  This is much easier for readers to easily locate and process.  Similarly, the maps might give a sense of posterior means, but do not give a sense of posterior variability.  How a posteriori certain are you about the parameters and predictions?
+
+Figure 7 would be easier to interpret if there were also maps of income and perwhite next to it.
+
++ Professionalism
+
+Overall, the report is well written and has very few typos.  One thing to think of when editing: make sure that you are consistent with tenses - sometimes you use past tense and sometimes you use present tense.
+
++  Additional feedback for USRESP
+
+In terms of bigger changes, I think it would be great if you hashed out some of the comparisons of prior and posterior models (eg: just pick one of your main parameters of interest, plot the prior and posterior). You might also illustrate your Markov chain out (eg: trace plots).

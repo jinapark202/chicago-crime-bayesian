@@ -1,0 +1,147 @@
+---
+title: "Codebook of Variables/Data Terms"
+author: "Jina Park, Phuc Nguyen"
+date: "12/10/2017"
+output: html_document
+---
+
+### Crime Data Variables
+
+- Primary Type: Type of crime 
+    - Violent Crimes: Robbery, Battery, Burglary, Assault, Homicide, Sex Offense, Crim Sexual Assault, Arson
+
+    - Non-violent crimes: Theft, Deceptive Practice, Narcotics, Other Offense, Criminal Damage, Criminal Trespass, Motor Vehicle Theft, Prostitution, Gambling, Weapons Violation, Offense involving children, Interference with Public Officer, Kidnapping, Stalking, Concealed carry license violation, Intimidation
+
+- Arrest: 1 for arrested, 0 for not arrested
+
+- Domestic: 1 for domestic crimes, 0 for non-domestic crimes
+
+- year: year of crime committed
+
+- date: date of crime committed
+
+
+### Census Demographic Data
+
+- region: zipcodes
+
+- total_population: total population in 2010
+
+- percent_white: percentage of White population in 2010
+
+- percent_black: percentage of Black population in 2010
+
+- percent_asian: percentage of Asian population in 2010
+
+- percent_hispanic: percentage of Hispanic population in 2010
+
+- per_capita_income: per capita income in 2010
+
+- median_rent: median rent prices in 2010
+
+- median_age: median age in 2010
+
+
+
+### Model 1 Variables
+
+- $i$: zipcodes in Chicago (58 total in data)
+
+- $j$: years (from 2010 to 2017)
+
+- $y_{ij}$: observed count of crimes in Chicago by year and zipcode
+
+- $p_{ij}$: inherent crime rate in zipcode $i$ and time $j$
+
+- $n_{ij}$: population in zipcode $i$
+
+- $\beta_{i}$: different intercept for zipcode i
+
+- $\delta_{i}$: time trend for zipcode i
+
+- $\beta_{0}$: the grand intercept
+
+- $\delta_{0}$: the grand time trend
+
+- $time_{j}$: time in years
+
+- $\tau_{0}$: the precision for $\beta_{i}$
+
+- $\tau_{1}$: the precision for $\delta_{i}$
+
+### Model 2 Variables
+
+- $i$: zipcodes in Chicago (58 total in data)
+
+- $j$: years (from 2010 to 2017)
+
+- $e$: discretized race demographic group ($e=1$ if white population is greater than 80%, $e=2$ if between 60-80%, $e=3$ if between 40-60%, $e=4$ if between 20-40%, and $e=5$ if less than 20%)
+
+- $y_{ij}$: observed count of crimes in Chicago by year and zipcode
+
+- $p_{ij}$: inherent crime rate in zipcode $i$ and time $j$
+
+- $n_{ij}$: population in zipcode $i$
+
+- $\beta_{i}$: different intercept for zipcode i
+
+- $\delta_{i}$: time trend for zipcode i
+
+- $\beta_{0}$: the grand intercept
+
+- $\sigma_{e}$: the relationship between violent crime rate and income for each discretized race group e
+
+- $income_{i}$: per capita income in zipcode i
+
+- $perwhite_{e}$: percentage white population in discretized race group e
+
+- $\delta_{0}$: the grand time trend
+
+- $time_{j}$: time in years
+
+- $\tau_{0}$: the precision for $\beta_{i}$
+
+- $\tau_{1}$: the precision for $\delta_{i}$
+
+- $\tau_{2}$: the precision for $\sigma_{e}$
+
+### Model 3 Variables
+
+- $i$: zipcodes in Chicago (58 total in data)
+
+- $j$: years (from 2010 to 2017)
+
+- $y_{ij}$: observed count of crimes in Chicago by year and zipcode
+
+- $p_{ij}$: inherent crime rate in zipcode $i$ and time $j$
+
+- $n_{ij}$: population in zipcode $i$
+
+- $\beta_{i}$: different intercept for zipcode i
+
+- $\delta_{i}$: time trend for zipcode i
+
+- $\sigma_{1}$: the relationship between the percentage of white population and crime
+
+- $\sigma_{2}$: the relationship between income and crime
+
+- $\sigma_{3}$: the relationship with the interaction term, $(perwhite * income)^{+}$, and crime
+
+- $\beta_{0}$: the grand intercept
+
+- $income_{i}$: per capita income in zipcode i
+
+- $perwhite_{i}^{+}$: portion of the $perwhite$ variable that is not explained by the $income$ variable; continuous variable that represents the percentage of white population in zipcode i
+
+- $(perwhite * income)^{+}$: portion of the interaction term that is not explained by the $income$ and $perwhite$ variables
+
+- $\delta_{0}$: the grand time trend
+
+- $time_{j}$: time in years
+
+- $\tau_{0}$: the precision for $\beta_{i}$
+
+- $\tau_{1}$: the precision for $\delta_{i}$
+
+
+
